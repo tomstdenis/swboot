@@ -17,7 +17,7 @@ The overall protocol
 - If the MSB were cleared
     - if the Page address is below 0x1E00
       - Host transmits 65 bytes using the above protocol
-      - target sums up bytes 0..63 and see if it matches byte 64
+      - target sums up bytes 0..64 and see if it sums to zero (byte 65 is 0 - (sum of bytes))
       - If not, wait 20uS, send byte 0x83
       - If matches, program bytes, wait 20uS, send byte 0x54
     - If the page address is >= 0x1E00, then we're done, jump to user code
@@ -41,16 +41,28 @@ To Program
   #define DELAY_US(us) __builtin_avr_delay_cycles((unsigned long)(us) * (F_CPU / 1000000UL))
   void __attribute__((section(".bootloader"), naked, used, noinline, noreturn)) setup()
   {
-    // initialize stack pointer to RAMEND-80 bytes
+    // initialize stack pointer to RAMEND-80 bytes 
   asm volatile (
+      // disable interrupts
       "cli \n\t"
+      // ensure r1 is zero
+      "eor r1,r1 \n\t" 
+      // clear the SREG in case we're in a warm reset
+      "out %[sreg], r1 \n\t"
+      // reset and clear Watchdog
+      "out %[mcusr], r1 \n\t"
+      "ldi  r16, 0x18    \n\t" // (1<<WDCE) | (1<<WDE)
+      "out  %[wdtcsr], r16 \n\t"
+      "out  %[wdtcsr], r1   \n\t"
+      // setup stack
       "ldi r28, lo8(%0) \n\t"
       "ldi r29, hi8(%0) \n\t"
       "sbiw r28, 40      \n\t" // Reserve ~80 bytes for local variables
       "sbiw r28, 40      \n\t"
       "out __SP_L__, r28 \n\t"
       "out __SP_H__, r29 \n\t"
-      : : "i" (RAMEND) :
+      :
+      : "i" (RAMEND), [sreg] "I"(_SFR_IO_ADDR(SREG)), [mcusr] "I" (_SFR_IO_ADDR(MCUSR)),[wdtcsr] "I" (0x21): "r16"
   );
     unsigned char buf, x, y, page[65];
 
@@ -139,11 +151,11 @@ To Program
           page[y] = buf;
         }
         // compute checksum
-        for (x = buf = 0; x < 64; x++) {
+        for (x = buf = 0; x < 65; x++) {
           buf += page[x];
         }
         // checksum byte doesn't match send 0x83 back to host
-        if (buf != page[64]) {
+        if (buf) {
           buf = 0x83;
           goto sendcode;
         }
@@ -220,12 +232,13 @@ To Program
 
     // our uploader program hijacks the sketches reset vector and stores it at 0x1DFE
   done:
-    // reset stack pointer then jump to app's resect vector
+    // reset stack pointer then jump to app's reset vector
     asm volatile (
       "ldi r28, lo8(%0) \n\t"
       "ldi r29, hi8(%0) \n\t"
       "out __SP_L__, r28 \n\t"
       "out __SP_H__, r29 \n\t"
+      "eor r1, r1 \n\t"
       "ijmp              \n\t"
       : 
       : "i" (RAMEND), "z" ((uint16_t)(0x1DFE >> 1))
