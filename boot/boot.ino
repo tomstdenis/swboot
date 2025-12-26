@@ -35,8 +35,8 @@ To Program
 
   // to read a bit sync to LOW, wait 10uS then sample pin
   // assumes 8MHz or 16MHz clock
-  // use PORTB always
-  #define BOOT_PIN 0
+  // use PORTB always (leaves port A's 8-bits untouched on tiny84's )
+  #define BOOT_PIN 2
   #define BB ((unsigned char)(1U<<BOOT_PIN))
   #define DELAY_US(us) __builtin_avr_delay_cycles((unsigned long)(us) * (F_CPU / 1000000UL))
   void __attribute__((section(".bootloader"), naked, used, noinline, noreturn)) setup()
@@ -152,7 +152,7 @@ To Program
         }
         // compute checksum
         for (x = buf = 0; x < 65; x++) {
-          buf += page[x];
+          buf += x ^ page[x];
         }
         // checksum byte doesn't match send 0x83 back to host
         if (buf) {
