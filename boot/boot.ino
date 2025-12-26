@@ -2,7 +2,7 @@
   // attiny84/attiny85 bootloader that uses single wire dallas style comms from programmer
   // uses 20uS bit width
   // 1 bit == 5uS LOW, 15us HIGH
-  // 0 bit == 15us LOW, 5us LOW
+  // 0 bit == 15us LOW, 5us HIGH
   // uses output LOW, and input HIGH (with external pullup)
 /* 
 The overall protocol
@@ -32,6 +32,24 @@ To Program
   - Use swclient program on your Linux host to send an Intel HEX file through swadapter to swboot.
     - swclient formats IHEX into completed pages, patches the reset vector, and then streams commands over serial to swadapter who in turn streams it over single wire to swboot.
 */
+
+// use SLOW_PULSE if your target doesn't have an external clock
+#define SLOW_PULSE
+
+#ifdef SLOW_PULSE
+// 40uS timebase
+#define PULSE_A 10
+#define PULSE_B 30
+#else
+// 20us timebase
+#define PULSE_A 5
+#define PULSE_B 15
+#endif
+
+#define DEBUG
+
+#define PULSE_MID ((PULSE_A+PULSE_B)/2)
+
 
   // to read a bit sync to LOW, wait 10uS then sample pin
   // assumes 8MHz or 16MHz clock
@@ -67,19 +85,28 @@ To Program
     unsigned char buf, x, y, page[65];
 
     // config pin as input (and PORT will be low when toggled to an output)
-    DDRB = ~BB;
+    DDRB &= ~BB;
     PORTB &= ~BB;
-    DELAY_US(2); // settle line
 
-    // the programmer must hold the data wire low for 100uS after resetting the target.
-    // check for low
-    if (PINB & BB) {
-      goto done;
+    // use PB0 as a debug port
+#ifdef DEBUG
+    DDRB |= 1;
+    PORTB &= ~1;
+#endif
+
+    // sample the pin for 1000us
+    for (y = x = 0; x < 100; x++) {
+      if (!(PINB & BB)) {
+        ++y;
+#ifdef DEBUG
+        PINB = 1;
+#endif        
+      }
+      DELAY_US(10);
     }
-
-    // delay 50us to make sure it's still low, recall we're here right out of reset
-    DELAY_US(50);
-    if (PINB & BB) {
+   
+    // if it was LOW for less than 10% of the time it's likely a regular boot.
+    if (y < 10) {
       goto done;
     }
 
@@ -91,55 +118,59 @@ To Program
       for (x = 0; x < 8; x++) {
         // wait for low
         while ((PINB & BB));
-        // wait 10uS
-        DELAY_US(10);
+        // wait till middle
+        DELAY_US(PULSE_MID);
         buf <<= 1;
         buf |= (((unsigned char)PINB) >> BOOT_PIN) & 1;
         // wait for it to go high
         while (!(PINB & BB));
       }
 
-      // if high bit is set we're sending a page back
-      if (buf & 0x80) {
+      if (buf == 120) {         // page 120 == done
+        goto done;
+      } else if (buf == 127) {  // page 127 == send 'H' back
+        buf = 'H';
+      } else if (buf >= 128) {  // page 128+ == read back page-128 to the adapter
           // buf was the command, let's assume bits 0-6 are the page address
           uint16_t addr = (uint16_t)(buf & 0x7F) << 6; 
 
-          DELAY_US(20); // wait one cycle 
           for (y = 0; y < 64; y++) {
               // Read byte from Flash
-              uint8_t val;
               asm volatile(
                   "movw r30, %1 \n\t"
                   "lpm %0, Z \n\t"
-                  : "=r" (val)
+                  : "=r" (buf)
                   : "r" (addr + y)
                   : "r30", "r31"
               );
+              page[y] = buf;
+          }
 
-              // Send 'val' over the wire using your existing bit-bang logic
+          for (y = 0; y < 64; y++) {
+              buf = page[y];
               for (x = 0; x < 8; x++) {
-                  DDRB |= BB;
-                  if (val & 0x80) {
-                      DELAY_US(5);
-                      DDRB &= ~BB;
-                      DELAY_US(15);
-                  } else {
-                      DELAY_US(15);
-                      DDRB &= ~BB;
-                      DELAY_US(5);
-                  }
-                  val <<= 1;
+                DDRB |= BB;
+                if (buf & 0x80) {
+                  DELAY_US(PULSE_A);
+                  DDRB &= ~BB;
+                  DELAY_US(PULSE_B);
+                } else {
+                  DELAY_US(PULSE_B);
+                  DDRB &= ~BB;
+                  DELAY_US(PULSE_A);
+                }
+                buf <<= 1;
               }
           }
-      } else {
+      } else if (buf < (0x1E00U >> 6)) { // pages 0..0x1E00>>6 mean program the page
         unsigned char pageaddr = buf;
         // receive a 64-byte page + checksum
         for (y = 0; y < 65; y++) {
           for (x = 0; x < 8; x++) {
             // wait for low
             while (PINB & BB);
-            // wait 10uS
-            DELAY_US(10);
+            // wait till middle
+            DELAY_US(PULSE_MID);
             buf <<= 1;
             buf |= (((unsigned char)PINB) >> BOOT_PIN) & 1;
             // wait for high
@@ -148,79 +179,75 @@ To Program
           page[y] = buf;
         }
         // compute checksum
-        for (x = 0, buf = 0xAA; x < 65; x++) {
+        for (x = 0, buf = 0xAA; x < 64; x++) {
           buf += x ^ page[x];
         }
         // checksum byte doesn't match send 0x83 back to host
-        if (buf) {
+        if (buf != page[64]) {
           buf = 0x83;
           goto sendcode;
         }
         // ensure we're not writing to the boot loader
         if (pageaddr < (0x1E00U >> 6)) {
-                uint16_t addr = (uint16_t)pageaddr << 6; 
+          uint16_t addr = (uint16_t)pageaddr << 6; 
 
-                // --- 1. WAIT & ERASE ---
-                asm volatile (
-                    "movw r30, %0 \n\t"       
-                    "ldi r16, 0x03 \n\t"      // Page Erase command
-                    "out %1, r16 \n\t"
-                    "spm \n\t"
-                    :
-                    : "r" (addr), "I" (_SFR_IO_ADDR(SPMCSR))
-                    : "r16", "r30", "r31"
-                );
+          // --- 1. WAIT & ERASE ---
+          asm volatile (
+              "movw r30, %0 \n\t"       
+              "ldi r16, 0x03 \n\t"      // Page Erase command
+              "out %1, r16 \n\t"
+              "spm \n\t"
+              :
+              : "r" (addr), "I" (_SFR_IO_ADDR(SPMCSR))
+              : "r16", "r30", "r31"
+          );
 
-                // --- 2. FILL BUFFER ---
-                for (x = 0; x < 64; x += 2) {
-                    uint16_t word = (uint16_t)page[x] | ((uint16_t)page[x + 1] << 8);
-                    
-                    asm volatile (
-                        "movw r30, %0 \n\t"   
-                        "movw r0, %1 \n\t"    // r1:r0 = word data
-                        "ldi r16, 0x01 \n\t"  // Fill Page Buffer command
-                        "out %2, r16 \n\t"
-                        "spm \n\t"
-                        :
-                        : "r" (addr + x), "r" (word), "I" (_SFR_IO_ADDR(SPMCSR))
-                        : "r16", "r0", "r1", "r30", "r31"
-                    );
-                }
-
-                // --- 3. WAIT & WRITE PAGE ---
-                asm volatile (
-                    "movw r30, %0 \n\t"
-                    "ldi r16, 0x05 \n\t"      // Page Write command
-                    "out %1, r16 \n\t"
-                    "spm \n\t"
-                    :
-                    : "r" (addr), "I" (_SFR_IO_ADDR(SPMCSR))
-                    : "r16", "r30", "r31"
-                );
-        } else {
-          // trying to write to bootloader signals we're done
-          break;
-        }
-        // write back an ACK byte of 0x54
-        buf = 0x54;
-  sendcode:
-        DELAY_US(20); // min spacing before switching roles to transmit
-        for (x = 0; x < 8; x++) {
-          // set output direction and low
-          DDRB |= BB;
-          if (buf & 0x80) {
-            // high bit == delay 5uS, set high, then delay 15uS
-            DELAY_US(5); 
-            DDRB &= ~BB;
-            DELAY_US(15);
-          } else {
-            // low bit == delay 15uS, then high then delay 5uS
-            DELAY_US(15); 
-            DDRB &= ~BB;
-            DELAY_US(5);          
+          // --- 2. FILL BUFFER ---
+          for (x = 0; x < 64; x += 2) {
+              uint16_t word = (uint16_t)page[x] | ((uint16_t)page[x + 1] << 8);
+              
+              asm volatile (
+                  "movw r30, %0 \n\t"   
+                  "movw r0, %1 \n\t"    // r1:r0 = word data
+                  "ldi r16, 0x01 \n\t"  // Fill Page Buffer command
+                  "out %2, r16 \n\t"
+                  "spm \n\t"
+                  :
+                  : "r" (addr + x), "r" (word), "I" (_SFR_IO_ADDR(SPMCSR))
+                  : "r16", "r0", "r1", "r30", "r31"
+              );
           }
-          buf <<= 1;
+
+          // --- 3. WAIT & WRITE PAGE ---
+          asm volatile (
+              "movw r30, %0 \n\t"
+              "ldi r16, 0x05 \n\t"      // Page Write command
+              "out %1, r16 \n\t"
+              "spm \n\t"
+              :
+              : "r" (addr), "I" (_SFR_IO_ADDR(SPMCSR))
+              : "r16", "r30", "r31"
+          );
         }
+      }
+      // write back an ACK byte of 0x54
+      buf = 0x54;
+sendcode:
+      for (x = 0; x < 8; x++) {
+        // set output direction and low
+        DDRB |= BB;
+        if (buf & 0x80) {
+          // high bit == delay 5uS, set high, then delay 15uS
+          DELAY_US(PULSE_A); 
+          DDRB &= ~BB;
+          DELAY_US(PULSE_B);
+        } else {
+          // low bit == delay 15uS, then high then delay 5uS
+          DELAY_US(PULSE_B); 
+          DDRB &= ~BB;
+          DELAY_US(PULSE_A);
+        }
+        buf <<= 1;
       }
     }
 

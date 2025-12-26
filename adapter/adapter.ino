@@ -41,50 +41,75 @@ Ideal wiring is:
   - 4.7k - 10k pullup attached to 1-wire
   - 100nF cap in line with reset pin (- leg attached to PA4)
 
+Right now in the breadboard I'm using the reset pin to get the target into the bootloader.
+Eventually I plan actually use a P-CH mosfet to just turn the target off, this gives me far more
+control over what's going on since every programming cycle will result in the device coming into a cold power up.
+
+I also plan to put a (source-source) pair of P-CH on the wire line so A can turn off the wire when programming is done to
+remove it much as possible from the targets circuit.
+
+Finally I also plan to put a ~200 Ohm resistor in series A's data wire so that if T shorts to Vcc (outputs high on it) it won't fry A's pin
+
 */
 
 #define PAGE_LIMIT 119
 
-// pins must be on PORTA
+// use SLOW_PULSE if your target doesn't have an external clock
+#define SLOW_PULSE
+
+#ifdef SLOW_PULSE
+// 40uS timebase
+#define PULSE_A 10
+#define PULSE_B 30
+#else
+// 20us timebase
+#define PULSE_A 5
+#define PULSE_B 15
+#endif
+
+#define PULSE_MID ((PULSE_A+PULSE_B)/2)
+
+// pins ...
+#if 0
+// tiny84
+#define PIN_PORT PORTA
+#define PIN_DDR  DDRA
+#define PIN_PIN  PINA
 #define PIN_RESET 4           // The reset pin
 #define PIN_WIRE  5           // The data wire
+#else
+// mega32u4 uses MISO/MOSI pins
+#define PIN_PORT PORTB
+#define PIN_DDR  DDRB
+#define PIN_PIN  PINB
+#define PIN_RESET 3 // MISO
+#define PIN_WIRE  2 // MOSI
+#endif
+
 #define BRESET (1<<PIN_RESET)
 #define BWIRE (1<<PIN_WIRE)
-
-// "flexible" timing
-#define OWIRE_SAMPLE 10       // how many uS to wait before sampling, try 12 if your 1-wire line is higher capacitance (not you'd have to also update the boot sketch)
 #define SERIAL_BAUD  9600     // baud rate for serial comms, lower values are more friendly for USI/bitbang targets
-
 #define DELAY_US(us) __builtin_avr_delay_cycles((unsigned long)(us) * (F_CPU / 1000000UL))
 
 unsigned char is_reset = 0;
-
-void setup() {
-  Serial.begin(SERIAL_BAUD);
-
-  // setup WIRE and RESET pins
-  PORTA |= BRESET; // output HIGH on RESET (don't reset target), use pullup on WIRE
-  PORTA &= ~BWIRE; // ensure BWIRE will be LOW when changed to an output
-  DDRA &= ~BWIRE; // WIRE defaults to input
-  DDRA |= BRESET; // RESET defaults to output
-}
 
 // read one byte
 unsigned char ow_readbyte()
 {
   unsigned char x, y;
-  cli();
+  unsigned long z;
   for (x = y = 0; x < 8; x++) {
-    // wait while high
-    while (PINA & BWIRE);
+    // wait for low
+    z = 0;
+    while (PIN_PIN & BWIRE) if (!(++z & 0x3FFFFF)) return 0;
     // sample at the mid point
-    DELAY_US(OWIRE_SAMPLE);
+    DELAY_US(PULSE_MID);
     y <<= 1;
-    y |= (PINA >> PIN_WIRE) & 1;
+    y |= (PIN_PIN >> PIN_WIRE) & 1;
     // wait for high
-    while (!(PINA & BWIRE));
+    z = 0;
+    while (!(PIN_PIN & BWIRE)) if (!(++z & 0x3FFFFF)) return 0;
   }
-  sei();
   return y;
 }
 
@@ -98,21 +123,19 @@ void ow_readbytes(unsigned char *dst, unsigned char len)
 void ow_writebyte(unsigned char y)
 {
   unsigned char x;
-  cli();
   for (x = 0; x < 8; x++) {
-    DDRA |= BWIRE; // toggle to output 
+    PIN_DDR |= BWIRE; // toggle to output 
     if (y & 0x80) {
-      DELAY_US(5);
-      DDRA &= ~BWIRE; // toggle back to input
-      DELAY_US(15);
+      DELAY_US(PULSE_A);
+      PIN_DDR &= ~BWIRE; // toggle back to input
+      DELAY_US(PULSE_B);
     } else {
-      DELAY_US(15);
-      DDRA &= ~BWIRE; // toggle back to input
-      DELAY_US(5);
+      DELAY_US(PULSE_B);
+      PIN_DDR &= ~BWIRE; // toggle back to input
+      DELAY_US(PULSE_A);
     }
     y <<= 1;
   }
-  sei();
 }
 
 void ow_writebytes(unsigned char *src, unsigned char len)
@@ -122,11 +145,52 @@ void ow_writebytes(unsigned char *src, unsigned char len)
   }
 }
 
+
+void setup() {
+  Serial.begin(SERIAL_BAUD);
+
+  // setup WIRE and RESET pins
+  PIN_PORT |= BRESET; // output HIGH on RESET (don't reset target), use pullup on WIRE
+  PIN_PORT &= ~BWIRE; // ensure BWIRE will be LOW when changed to an output
+  PIN_DDR &= ~BWIRE; // WIRE defaults to input
+  PIN_DDR |= BRESET; // RESET defaults to output
+}
+
+void do_reset()
+{
+  do {
+    // reset the target
+    PIN_DDR |= BWIRE;       // set WIRE as output should put line low
+    PIN_PORT &= ~BRESET;    // set RESET low (halts the target)
+    DELAY_US(1000UL * 250);  // hold low for 250ms
+    PIN_PORT |= BRESET;     // set RESET high (reboots the target)
+    DELAY_US(1000UL * 150);  // wait 150ms for it to power up
+    PIN_DDR &= ~BWIRE;      // reset wire to input, line should go high
+    DELAY_US(75);
+
+    // try to send the page == 127 to recv 'H' back
+    ow_writebyte(127);
+  } while (ow_readbyte() != 'H');
+  is_reset = 1;
+}
+
 void loop() {
   unsigned char payload[66];
 
+#if 0
+  if (!(PIN_PIN & (1<<6))) {
+    if (Serial.available()) {
+      // echo anything we read
+      Serial.write(Serial.read());
+    }
+    return;
+  }
+#endif
+
   // block while no input
-  while (Serial.available() == 0);
+  if (Serial.available() == 0) {
+    return;
+  }
 
   // read PAGE byte
   payload[0] = Serial.read();
@@ -137,32 +201,26 @@ void loop() {
 
     // reset if needed AFTER reading from UART so we don't lose payload
     if (!is_reset) {
-      // reset the target, blip the RESET pin and output low for 100uS then high
-      DDRA |= BWIRE;
-      PORTA &= ~BWIRE;  // set WIRE low
-      PORTA &= ~BRESET; // set RESET low
-      DELAY_US(1000);   // hold low for 1000uS
-      PORTA |= BRESET;  // set RESET high
-      DELAY_US(1500);   // 1500uS should be long enough for the target to power up and wait for the low pulse
-      DDRA &= ~BWIRE;   // reset wire to input HIGH pullup
-      PORTA |= BWIRE;
-      is_reset = 1;
+      do_reset();
     }
     ow_writebytes(payload, 66);
-    DELAY_US(20); // wait 20uS before reading ACK
     Serial.write(ow_readbyte());
   } else if (payload[0] >= 128) {
     // reading a page, transmit page and then read
+    // reset if needed AFTER reading from UART so we don't lose payload
+    if (!is_reset) {
+      do_reset();
+    }
     ow_writebyte(payload[0]);
-    DELAY_US(20); // wait 20uS before switching roles on 1-wire
     ow_readbytes(payload, 65); // payload + ACK byte
     Serial.write(payload, 65);
   } else if (payload[0] >= 120 && payload[0] <= 126) {
     // we're done programming
     ow_writebyte(payload[0]);
     is_reset = 0;
-    DELAY_US(20);
   } else if (payload[0] == 127) {
+    // Init packet to check H - A connection
     Serial.print(F("HELLO"));
+    is_reset = 0; // go back to assuming the device needs a reset
   }
 }
