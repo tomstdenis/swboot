@@ -46,7 +46,7 @@ To Program
 #define PULSE_B 15
 #endif
 
-#define DEBUG
+//#define DEBUG
 
 #define PULSE_MID ((PULSE_A+PULSE_B)/2)
 
@@ -82,7 +82,7 @@ To Program
       :
       : "i" (RAMEND), [sreg] "I"(_SFR_IO_ADDR(SREG)), [mcusr] "I" (_SFR_IO_ADDR(MCUSR)),[wdtcsr] "I" (0x21): "r16"
   );
-    unsigned char buf, x, y, page[65];
+    unsigned char buf, x, y, z, page[65];
 
     // config pin as input (and PORT will be low when toggled to an output)
     DDRB &= ~BB;
@@ -113,6 +113,11 @@ To Program
     // wait for it to go back high
     while (!(PINB & BB));
 
+    // now we hold the line low for 100uS
+    DDRB |= BB;
+    DELAY_US(100);
+    DDRB &= ~BB;
+
     for (;;) {
       // now read the command byte
       for (x = 0; x < 8; x++) {
@@ -126,10 +131,12 @@ To Program
         while (!(PINB & BB));
       }
 
+      z = 1;
       if (buf == 120) {         // page 120 == done
         goto done;
       } else if (buf == 127) {  // page 127 == send 'H' back
-        buf = 'H';
+        page[0] = 'H';
+        goto sendcode;
       } else if (buf >= 128) {  // page 128+ == read back page-128 to the adapter
           // buf was the command, let's assume bits 0-6 are the page address
           uint16_t addr = (uint16_t)(buf & 0x7F) << 6; 
@@ -143,25 +150,11 @@ To Program
                   : "r" (addr + y)
                   : "r30", "r31"
               );
-              page[y] = buf;
+              page[y+1] = buf;
           }
-
-          for (y = 0; y < 64; y++) {
-              buf = page[y];
-              for (x = 0; x < 8; x++) {
-                DDRB |= BB;
-                if (buf & 0x80) {
-                  DELAY_US(PULSE_A);
-                  DDRB &= ~BB;
-                  DELAY_US(PULSE_B);
-                } else {
-                  DELAY_US(PULSE_B);
-                  DDRB &= ~BB;
-                  DELAY_US(PULSE_A);
-                }
-                buf <<= 1;
-              }
-          }
+          page[0] = 0x54; // ACK byte
+          z = 65;
+          goto sendcode;
       } else if (buf < (0x1E00U >> 6)) { // pages 0..0x1E00>>6 mean program the page
         unsigned char pageaddr = buf;
         // receive a 64-byte page + checksum
@@ -184,7 +177,7 @@ To Program
         }
         // checksum byte doesn't match send 0x83 back to host
         if (buf != page[64]) {
-          buf = 0x83;
+          page[0] = 0x83;
           goto sendcode;
         }
         // ensure we're not writing to the boot loader
@@ -231,23 +224,26 @@ To Program
         }
       }
       // write back an ACK byte of 0x54
-      buf = 0x54;
+      page[0] = 0x54;
 sendcode:
-      for (x = 0; x < 8; x++) {
-        // set output direction and low
-        DDRB |= BB;
-        if (buf & 0x80) {
-          // high bit == delay 5uS, set high, then delay 15uS
-          DELAY_US(PULSE_A); 
-          DDRB &= ~BB;
-          DELAY_US(PULSE_B);
-        } else {
-          // low bit == delay 15uS, then high then delay 5uS
-          DELAY_US(PULSE_B); 
-          DDRB &= ~BB;
-          DELAY_US(PULSE_A);
+      for (y = 0; y < z; y++) {
+        buf = page[y];
+        for (x = 0; x < 8; x++) {
+          // set output direction and low
+          DDRB |= BB;
+          if (buf & 0x80) {
+            // high bit == delay 5uS, set high, then delay 15uS
+            DELAY_US(PULSE_A); 
+            DDRB &= ~BB;
+            DELAY_US(PULSE_B);
+          } else {
+            // low bit == delay 15uS, then high then delay 5uS
+            DELAY_US(PULSE_B); 
+            DDRB &= ~BB;
+            DELAY_US(PULSE_A);
+          }
+          buf <<= 1;
         }
-        buf <<= 1;
       }
     }
 

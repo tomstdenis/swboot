@@ -158,7 +158,9 @@ void setup() {
 
 void do_reset()
 {
+  unsigned char x, y;
   do {
+top:
     // reset the target
     PIN_DDR |= BWIRE;       // set WIRE as output should put line low
     PIN_PORT &= ~BRESET;    // set RESET low (halts the target)
@@ -166,7 +168,28 @@ void do_reset()
     PIN_PORT |= BRESET;     // set RESET high (reboots the target)
     DELAY_US(1000UL * 150);  // wait 150ms for it to power up
     PIN_DDR &= ~BWIRE;      // reset wire to input, line should go high
-    DELAY_US(75);
+
+    // now sample 2*PULSE_MID for low
+    for (x = y = 0; x < (2*PULSE_MID); x++) {
+      if (!(PIN_PIN & BWIRE)) {
+        ++y;
+      }
+      DELAY_US(1);
+    }
+
+    // we expect at least 25% of the cycle
+    if (y < ((2*PULSE_MID)/4)) {
+      continue;
+    }
+
+    // wait for line to go high with timeout (10ms)
+    x = 0;
+    while (!(PIN_PIN & BWIRE)) {
+      DELAY_US(1000);
+      if (++x == 11) {
+        goto top;
+      }
+    }
 
     // try to send the page == 127 to recv 'H' back
     ow_writebyte(127);
