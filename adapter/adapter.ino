@@ -2,8 +2,8 @@
 
 UART to 1-wire translator for swboot programming
 
-This sketch receives byte commands over serial and then relays them
-over the 1-wire protocol to the target being programmed.  It uses
+This sketch sits between the host(PC) and target.  It receives byte commands over serial
+and then relays them over the 1-wire protocol to the target being programmed.  It uses
 a scheme similar to dalas 1-wire where:
 
 0-bit: 15uS LOW, 5uS HIGH
@@ -14,17 +14,17 @@ loop:
   sample at 10uS
   wait for HIGH
 
-The serial commands are basically of the format
+Commands begin with a PAGE byte
 
-  - A -> T PAGE address (1 byte)
-  - A -> T PAYLOAD (0 or 65 bytes)
-  - T -> A PAYLOAD (0 or 64 bytes)
-  - T -> A ACK byte (0x54 good, 0x83 bad)
+H = host (your PC)
+A = This adapter sketch
+T = The target (programmed with the boot sketch at 0x1E00)
 
 PAGE:
-  - 0..119 ==> program page (top 512-bytes are reserved), A must send 65 byte payload, T must return ACK
-  - 120..127 ==> means to stop programming
-  - 128..255 ==> read page (PAGE-128) (T must return 64 bytes + ACK) (can read bootload back if wanted...)
+  - 0..119 ==> program page (top 512-bytes are reserved), H transmits 65 byte page payload, A relays to T, T responds with ACK byte
+  - 120..126 ==> means to stop programming
+  - 127 ==> A should send "HELLO" to H
+  - 128..255 ==> read page (PAGE-128) (T sends 64 byte page + ACK to A, A relays to H)
 
 To support USI/bitbang devices the protocol assumes half-duplex meaning if the UART is busy the 1-wire is not
 and vice versa.  This allows us to do either (but especially the 1-wire) in a cli/sei wrapped tight loop.
@@ -45,20 +45,26 @@ Ideal wiring is:
 
 #define PAGE_LIMIT 119
 
-
-#define PIN_RESET 4
-#define PIN_WIRE  5
+// pins must be on PORTA
+#define PIN_RESET 4           // The reset pin
+#define PIN_WIRE  5           // The data wire
 #define BRESET (1<<PIN_RESET)
 #define BWIRE (1<<PIN_WIRE)
+
+// "flexible" timing
+#define OWIRE_SAMPLE 10       // how many uS to wait before sampling, try 12 if your 1-wire line is higher capacitance (not you'd have to also update the boot sketch)
+#define SERIAL_BAUD  9600     // baud rate for serial comms, lower values are more friendly for USI/bitbang targets
+
 #define DELAY_US(us) __builtin_avr_delay_cycles((unsigned long)(us) * (F_CPU / 1000000UL))
 
 unsigned char is_reset = 0;
 
 void setup() {
-  Serial.begin(9600); // simple low baud to handle (handy if you're bitbanging)
+  Serial.begin(SERIAL_BAUD);
 
-  // setup PA4/PA5 
-  PORTA |= BRESET | BWIRE; // output HIGH on RESET (don't reset target), use pullup on WIRE
+  // setup WIRE and RESET pins
+  PORTA |= BRESET; // output HIGH on RESET (don't reset target), use pullup on WIRE
+  PORTA &= ~BWIRE; // ensure BWIRE will be LOW when changed to an output
   DDRA &= ~BWIRE; // WIRE defaults to input
   DDRA |= BRESET; // RESET defaults to output
 }
@@ -72,9 +78,9 @@ unsigned char ow_readbyte()
     // wait while high
     while (PINA & BWIRE);
     // sample at the mid point
-    DELAY_US(10);
-    y |= (PINA >> PIN_WIRE) & 1;
+    DELAY_US(OWIRE_SAMPLE);
     y <<= 1;
+    y |= (PINA >> PIN_WIRE) & 1;
     // wait for high
     while (!(PINA & BWIRE));
   }
@@ -94,17 +100,14 @@ void ow_writebyte(unsigned char y)
   unsigned char x;
   cli();
   for (x = 0; x < 8; x++) {
-    PORTB &= ~BWIRE;
-    DDRB |= BWIRE; // low pulse
+    DDRA |= BWIRE; // toggle to output 
     if (y & 0x80) {
       DELAY_US(5);
-      DDRB &= ~BWIRE;
-      PORTB |= BWIRE; // set high input
+      DDRA &= ~BWIRE; // toggle back to input
       DELAY_US(15);
     } else {
       DELAY_US(15);
-      DDRB &= ~BWIRE;
-      PORTB |= BWIRE; // set high input
+      DDRA &= ~BWIRE; // toggle back to input
       DELAY_US(5);
     }
     y <<= 1;
@@ -136,31 +139,30 @@ void loop() {
     if (!is_reset) {
       // reset the target, blip the RESET pin and output low for 100uS then high
       DDRA |= BWIRE;
-      PORTA &= ~BWIRE; // set WIRE low
+      PORTA &= ~BWIRE;  // set WIRE low
       PORTA &= ~BRESET; // set RESET low
-      DELAY_US(1);
-      PORTA |= BRESET; // set RESET high
-      DELAY_US(100);
-      DDRA &= ~BWIRE;  // reset wire to input HIGH pullup
+      DELAY_US(1000);   // hold low for 1000uS
+      PORTA |= BRESET;  // set RESET high
+      DELAY_US(1500);   // 1500uS should be long enough for the target to power up and wait for the low pulse
+      DDRA &= ~BWIRE;   // reset wire to input HIGH pullup
       PORTA |= BWIRE;
       is_reset = 1;
     }
-    ow_writebytes(payload+1, 65);
+    ow_writebytes(payload, 66);
+    DELAY_US(20); // wait 20uS before reading ACK
+    Serial.write(ow_readbyte());
   } else if (payload[0] >= 128) {
     // reading a page, transmit page and then read
     ow_writebyte(payload[0]);
-    DELAY_US(20);
-    ow_readbytes(payload+1, 64);
-  } else if (payload[0] >= 120 && payload[0] <= 127) {
+    DELAY_US(20); // wait 20uS before switching roles on 1-wire
+    ow_readbytes(payload, 65); // payload + ACK byte
+    Serial.write(payload, 65);
+  } else if (payload[0] >= 120 && payload[0] <= 126) {
     // we're done programming
     ow_writebyte(payload[0]);
     is_reset = 0;
     DELAY_US(20);
-  }
-
-  // if is_reset != 0 we should have an ACK byte
-  if (!is_reset) {
-    DELAY_US(20);
-    Serial.write(ow_readbyte());
+  } else if (payload[0] == 127) {
+    Serial.print(F("HELLO"));
   }
 }

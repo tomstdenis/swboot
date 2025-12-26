@@ -66,9 +66,9 @@ To Program
   );
     unsigned char buf, x, y, page[65];
 
-    // config pin as input with pullup 
+    // config pin as input (and PORT will be low when toggled to an output)
     DDRB = ~BB;
-    PORTB |= BB;
+    PORTB &= ~BB;
     DELAY_US(2); // settle line
 
     // the programmer must hold the data wire low for 100uS after resetting the target.
@@ -118,17 +118,14 @@ To Program
 
               // Send 'val' over the wire using your existing bit-bang logic
               for (x = 0; x < 8; x++) {
-                  PORTB &= ~BB;
                   DDRB |= BB;
                   if (val & 0x80) {
                       DELAY_US(5);
                       DDRB &= ~BB;
-                      PORTB |= BB;
                       DELAY_US(15);
                   } else {
                       DELAY_US(15);
                       DDRB &= ~BB;
-                      PORTB |= BB;
                       DELAY_US(5);
                   }
                   val <<= 1;
@@ -151,7 +148,7 @@ To Program
           page[y] = buf;
         }
         // compute checksum
-        for (x = buf = 0; x < 65; x++) {
+        for (x = 0, buf = 0xAA; x < 65; x++) {
           buf += x ^ page[x];
         }
         // checksum byte doesn't match send 0x83 back to host
@@ -210,19 +207,16 @@ To Program
         DELAY_US(20); // min spacing before switching roles to transmit
         for (x = 0; x < 8; x++) {
           // set output direction and low
-          PORTB &= ~BB;
           DDRB |= BB;
           if (buf & 0x80) {
             // high bit == delay 5uS, set high, then delay 15uS
             DELAY_US(5); 
             DDRB &= ~BB;
-            PORTB |= BB;
             DELAY_US(15);
           } else {
             // low bit == delay 15uS, then high then delay 5uS
             DELAY_US(15); 
             DDRB &= ~BB;
-            PORTB |= BB;
             DELAY_US(5);          
           }
           buf <<= 1;
