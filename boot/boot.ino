@@ -1,33 +1,12 @@
 
-  // attiny84/attiny85 bootloader that uses single wire dallas style comms from programmer
-  // uses 20uS bit width
-  // 1 bit == 5uS LOW, 15us HIGH
-  // 0 bit == 15us LOW, 5us HIGH
-  // uses output LOW, and input HIGH (with external pullup)
+// attiny84/attiny85 bootloader that uses single wire dallas style comms from programmer
 /* 
-The overall protocol
-
-- Host toggles the reset line of the target
-- Host sets data as output low for 100uS
-- Host sets data as high impedence (external pullup pulls it high) for at least 20uS
-- Host then sends 1 byte using above protocol
-- If the MSB is set then
-    - wait 20uS
-    - target transmits the page indicate by the lower 7 bits of the byte read using the above protocol
-- If the MSB were cleared
-    - if the Page address is below 0x1E00
-      - Host transmits 65 bytes using the above protocol
-      - target sums up bytes 0..64 and see if it sums to zero (byte 65 is 0 - (sum of bytes))
-      - If not, wait 20uS, send byte 0x83
-      - If matches, program bytes, wait 20uS, send byte 0x54
-    - If the page address is >= 0x1E00, then we're done, jump to user code
-
 To deploy:
   - With ISP (Arduino as ISP) program the fuses and this sketch to the device.
     - In this config the bootloader runs as a "setup()" function so there's a tiny startup delay
 
 To Program
-  - Flash the swadapter to another ATTiny84 (using ISP or Optiboot) with an FTDI or similar connection to it's TX/RX pins (see ATTinycode specs for pins)
+  - Flash the swadapter to another ATTiny84/Arduino-like (using ISP or Optiboot) with an FTDI or similar connection to it's TX/RX pins (see ATTinycode specs for pins)
     - Ideally configure it per the apps notes (use an external clock, put a 1kOhm resistor on the data line, put a 100nF cap in series with the RESET of the target)
   - Use swclient program on your Linux host to send an Intel HEX file through swadapter to swboot.
     - swclient formats IHEX into completed pages, patches the reset vector, and then streams commands over serial to swadapter who in turn streams it over single wire to swboot.
@@ -86,7 +65,7 @@ To Program
 
     // config pin as input (and PORT will be low when toggled to an output)
     DDRB &= ~BB;
-    PORTB &= ~BB;
+    PORTB |= BB; // enable internal pullup so if the target is fielded with the pin floating it won't randomly enter the bootloader.
 
     // use PB0 as a debug port
 #ifdef DEBUG
@@ -114,8 +93,12 @@ To Program
     while (!(PINB & BB));
 
     // now we hold the line low for 100uS
+    // set LOW so we don't accidentally output HIGH while a sink is present.
+    PORTB &= ~BB;
+    // enable output
     DDRB |= BB;
     DELAY_US(100);
+    // at this point we don't need the internal pullup since we're entering the bootloader
     DDRB &= ~BB;
 
     for (;;) {

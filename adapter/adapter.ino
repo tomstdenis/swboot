@@ -169,8 +169,8 @@ top:
     DELAY_US(1000UL * 150);  // wait 150ms for it to power up
     PIN_DDR &= ~BWIRE;      // reset wire to input, line should go high
 
-    // now sample 2*PULSE_MID for low
-    for (x = y = 0; x < (2*PULSE_MID); x++) {
+    // now sample 100 for low
+    for (x = y = 0; x < 100; x++) {
       if (!(PIN_PIN & BWIRE)) {
         ++y;
       }
@@ -178,7 +178,7 @@ top:
     }
 
     // we expect at least 25% of the cycle
-    if (y < ((2*PULSE_MID)/4)) {
+    if (y < 25) {
       continue;
     }
 
