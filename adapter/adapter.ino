@@ -22,7 +22,8 @@ T = The target (programmed with the boot sketch at 0x1E00)
 
 PAGE:
   - 0..119 ==> program page (top 512-bytes are reserved), H transmits 65 byte page payload, A relays to T, T responds with ACK byte
-  - 120..126 ==> means to stop programming
+  - 120 ==> means to stop programming
+  - 121 ==> Power control (mostly for mosfet based designs)
   - 127 ==> A should send "HELLO" to H
   - 128..255 ==> read page (PAGE-128) (T sends 64 byte page + ACK to A, A relays to H)
 
@@ -38,8 +39,7 @@ When using an ATTiny84 as the adapter:
 
 Ideal wiring is:
 
-  - 4.7k - 10k pullup attached to 1-wire
-  - 100nF cap in line with reset pin (- leg attached to PA4)
+  - 470 to 1000 ohm pullup attached to 1-wire
 
 Right now in the breadboard I'm using the reset pin to get the target into the bootloader.
 Eventually I plan actually use a P-CH mosfet to just turn the target off, this gives me far more
@@ -53,6 +53,9 @@ Finally I also plan to put a ~200 Ohm resistor in series A's data wire so that i
 */
 
 #define PAGE_LIMIT 119
+
+// MOSFET based support (not yet done)
+//#define USE_MOSFETS
 
 // REALLY slow...(use this if your line has high capacitance or a weak pullup, uses a 80uS period)
 #define REALLY_SLOW_PULSE
@@ -156,24 +159,45 @@ void ow_writebytes(unsigned char *src, unsigned char len)
 
 void setup() {
   Serial.begin(SERIAL_BAUD);
-
+#ifndef USE_MOSFETS
   // setup WIRE and RESET pins
   PIN_PORT |= BRESET; // output HIGH on RESET (don't reset target), use pullup on WIRE
+  PIN_DDR |= BRESET; // RESET defaults to output
   PIN_PORT &= ~BWIRE; // ensure BWIRE will be LOW when changed to an output
   PIN_DDR &= ~BWIRE; // WIRE defaults to input
-  PIN_DDR |= BRESET; // RESET defaults to output
+#endif
 }
+
+#ifndef USE_MOSFETS
+void target_power(int on)
+{
+  if (on) {
+    // disable reset
+    PIN_PORT |= BRESET;
+  } else {
+    // set reset LOW which puts the target into reset
+    PIN_PORT &= ~BRESET;
+  }
+}
+
+void target_data_ch(int on)
+{
+  // nop in the mosfet-less design
+}
+#endif
 
 void do_reset()
 {
   unsigned char x, y;
+  target_data_ch(1); // turn on data channel
   do {
 top:
     // reset the target
     PIN_DDR |= BWIRE;       // set WIRE as output should put line low
+    target_power(0);        // turn off/reset
     PIN_PORT &= ~BRESET;    // set RESET low (halts the target)
     DELAY_US(1000UL * 250);  // hold reset for 250ms
-    PIN_PORT |= BRESET;     // set RESET high (reboots the target)
+    target_power(1);        // turn on/out of reset
     DELAY_US(1000UL * 150);  // wait 150ms for it to power up
     PIN_DDR &= ~BWIRE;      // reset wire to input, line should go high
 
@@ -203,21 +227,13 @@ top:
     // try to send the page == 127 to recv 'H' back
     DELAY_US(PULSE_A+PULSE_B);
     ow_writebyte(127);
-    //DELAY_US(PULSE_A); // pause the short pulse waiting for the other side to get ready to send
     x = ow_readbyte();
-//    Serial.write(x);
   } while (x != 'H');
   is_reset = 1;
 }
 
 void loop() {
   unsigned char payload[66];
-
-#if 0
-  payload[0] = ow_readbyte();
-  Serial.write(payload[0]);
-  return;
-#endif
 
   // block while no input
   if (Serial.available() == 0) {
@@ -249,13 +265,21 @@ void loop() {
     ow_readbytes(payload, 65); // payload + ACK byte
     Serial.write(payload, 65);
     DELAY_US(5000); // pause 1ms between page writes
-  } else if (payload[0] >= 120 && payload[0] <= 126) {
-    // we're done programming
-    ow_writebyte(payload[0]);
-    is_reset = 0;
+  } else if (payload[0] == 121) {
+    // power control
+    payload[0] = Serial.read();
+    target_power(payload[0] & 1);
+    target_data_ch(payload[0] & 2);
+    Serial.write(0x54); // ACK
   } else if (payload[0] == 127) {
     // Init packet to check H - A connection
     Serial.print(F("HELLO"));
     is_reset = 0; // go back to assuming the device needs a reset
+    target_data_ch(0); // turn off data channel
+  } else {
+    // we're done programming
+    ow_writebyte(payload[0]);
+    is_reset = 0;
+    target_data_ch(0); // turn off data channel
   }
 }
