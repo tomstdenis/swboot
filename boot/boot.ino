@@ -30,8 +30,6 @@ Limitations:
 #define PULSE_B 15
 #endif
 
-//#define DEBUG
-
 #define PULSE_MID ((PULSE_A+PULSE_B)/2)
 
 
@@ -72,19 +70,11 @@ Limitations:
     DDRB &= ~BB;
     PORTB |= BB; // enable internal pullup so if the target is fielded with the pin floating it won't randomly enter the bootloader.
 
-    // use PB0 as a debug port
-#ifdef DEBUG
-    DDRB |= 1;
-    PORTB &= ~1;
-#endif
-
-    // sample the pin for 1000us
+    // sample the pin for 1ms the adapter holds the pin low for 150ms after releasing RESET
+    // which means we have to boot up and capture at 1/150th of the window.
     for (y = x = 0; x < 100; x++) {
       if (!(PINB & BB)) {
         ++y;
-#ifdef DEBUG
-        PINB = 1;
-#endif        
       }
       DELAY_US(10);
     }
@@ -94,7 +84,7 @@ Limitations:
       goto done;
     }
 
-    // wait for it to go back high
+    // We don't know where in the 150mS post-RESET window we're in so syncup to the adapter going high.
     while (!(PINB & BB));
 
     // now we hold the line low for 100uS
