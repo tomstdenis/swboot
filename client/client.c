@@ -187,6 +187,11 @@ static int dump_hex(int fd, char *fname)
 
 static int program_file(int fd, char *hexfname, int patch_vector)
 {
+	if (!patch_vector && strstr(hexfname, ".ino.hex")) {
+		printf("WARNING: You elected to not patch the reset vector and are programming what is likely an Arduino sketch... hit CTRL+C to cancel in the next 10 seconds...\n");
+		printf("WARNING: If you are programming an Arduino sketch use the '-p' option instead.\n");
+		sleep(10);
+	}
     parse_hex(hexfname, patch_vector);
 
     // 2. Upload and Verify
