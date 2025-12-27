@@ -271,8 +271,8 @@ void loop() {
     if (payload[0] & 2) {
       target_power(payload[0] & 1);
     }
-    if (payload[0] & 4) {
-      target_data_ch(payload[0] & 8);
+    if (payload[0] & 8) {
+      target_data_ch(payload[0] & 4);
     }
     Serial.write(0x54); // ACK
   } else if (payload[0] == 127) {
