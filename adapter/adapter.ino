@@ -55,7 +55,7 @@ Finally I also plan to put a ~200 Ohm resistor in series A's data wire so that i
 #define PAGE_LIMIT 119
 
 // MOSFET based support (not yet done)
-#define USE_MOSFETS
+//#define USE_MOSFETS
 
 // REALLY slow...(use this if your line has high capacitance or a weak pullup, uses a 80uS period)
 #define REALLY_SLOW_PULSE
@@ -92,6 +92,9 @@ Finally I also plan to put a ~200 Ohm resistor in series A's data wire so that i
 #define PIN_PORT PORTB
 #define PIN_DDR  DDRB
 #define PIN_PIN  PINB
+#ifndef USE_MOSFETS
+#define PIN_RESET 4           // The reset pin
+#endif
 #define PIN_WIRE  2 // MOSI
 #ifdef USE_MOSFETS
 #define PIN_PWREN 14 // TBD (MISO)
