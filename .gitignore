@@ -1,2 +1,4 @@
 build
 *.lst
+client/client
+client/*.o

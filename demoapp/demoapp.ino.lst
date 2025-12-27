@@ -33,29 +33,29 @@ __trampolines_start():
 
 0000002a <__do_clear_bss>:
 __do_clear_bss():
-/home/jenkins/workspace/avr-gcc-staging/label/debian7-x86_64/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2441
+/home/admin/build/toolchain-avr-special/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2441
   2a:	20 e0       	ldi	r18, 0x00	; 0
-/home/jenkins/workspace/avr-gcc-staging/label/debian7-x86_64/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2442
+/home/admin/build/toolchain-avr-special/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2442
   2c:	a0 e6       	ldi	r26, 0x60	; 96
-/home/jenkins/workspace/avr-gcc-staging/label/debian7-x86_64/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2443
+/home/admin/build/toolchain-avr-special/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2443
   2e:	b0 e0       	ldi	r27, 0x00	; 0
-/home/jenkins/workspace/avr-gcc-staging/label/debian7-x86_64/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2444
+/home/admin/build/toolchain-avr-special/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2444
   30:	01 c0       	rjmp	.+2      	; 0x34 <.do_clear_bss_start>
 
 00000032 <.do_clear_bss_loop>:
-/home/jenkins/workspace/avr-gcc-staging/label/debian7-x86_64/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2446
+/home/admin/build/toolchain-avr-special/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2446
   32:	1d 92       	st	X+, r1
 
 00000034 <.do_clear_bss_start>:
-/home/jenkins/workspace/avr-gcc-staging/label/debian7-x86_64/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2448
+/home/admin/build/toolchain-avr-special/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2448
   34:	a9 36       	cpi	r26, 0x69	; 105
-/home/jenkins/workspace/avr-gcc-staging/label/debian7-x86_64/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2449
+/home/admin/build/toolchain-avr-special/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2449
   36:	b2 07       	cpc	r27, r18
-/home/jenkins/workspace/avr-gcc-staging/label/debian7-x86_64/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2450
+/home/admin/build/toolchain-avr-special/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2450
   38:	e1 f7       	brne	.-8      	; 0x32 <.do_clear_bss_loop>
 .do_clear_bss_start():
   3a:	72 d0       	rcall	.+228    	; 0x120 <main>
-  3c:	a3 c0       	rjmp	.+326    	; 0x184 <_exit>
+  3c:	a4 c0       	rjmp	.+328    	; 0x186 <_exit>
 
 0000003e <__bad_interrupt>:
 __vector_1():
@@ -332,8 +332,9 @@ loop():
 
 void loop()
 {
-  PINB |= 1; // toggle PB0
- 140:	b0 9a       	sbi	0x16, 0	; 22
+  PINB = 1; // toggle PB0
+ 140:	11 e0       	ldi	r17, 0x01	; 1
+ 142:	16 bb       	out	0x16, r17	; 22
 delay():
 /home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:518
   void yield(void) __attribute__ ((weak, alias("__empty")));
@@ -342,42 +343,42 @@ delay():
   {
     #if (F_CPU>=1000000L)
     uint16_t start = (uint16_t)micros();
- 142:	7e df       	rcall	.-260    	; 0x40 <micros>
- 144:	eb 01       	movw	r28, r22
- 146:	84 ef       	ldi	r24, 0xF4	; 244
- 148:	c8 2e       	mov	r12, r24
- 14a:	dd 24       	eor	r13, r13
- 14c:	d3 94       	inc	r13
- 14e:	e1 2c       	mov	r14, r1
- 150:	f1 2c       	mov	r15, r1
+ 144:	7d df       	rcall	.-262    	; 0x40 <micros>
+ 146:	eb 01       	movw	r28, r22
+ 148:	84 ef       	ldi	r24, 0xF4	; 244
+ 14a:	c8 2e       	mov	r12, r24
+ 14c:	dd 24       	eor	r13, r13
+ 14e:	d3 94       	inc	r13
+ 150:	e1 2c       	mov	r14, r1
+ 152:	f1 2c       	mov	r15, r1
 /home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:522
 
     while (ms > 0) {
       yield();
       while (((uint16_t)micros() - start) >= 1000 && ms) {
- 152:	76 df       	rcall	.-276    	; 0x40 <micros>
- 154:	6c 1b       	sub	r22, r28
- 156:	7d 0b       	sbc	r23, r29
- 158:	68 3e       	cpi	r22, 0xE8	; 232
- 15a:	73 40       	sbci	r23, 0x03	; 3
- 15c:	68 f0       	brcs	.+26     	; 0x178 <main+0x58>
- 15e:	c1 14       	cp	r12, r1
- 160:	d1 04       	cpc	r13, r1
- 162:	e1 04       	cpc	r14, r1
- 164:	f1 04       	cpc	r15, r1
- 166:	61 f3       	breq	.-40     	; 0x140 <main+0x20>
+ 154:	75 df       	rcall	.-278    	; 0x40 <micros>
+ 156:	6c 1b       	sub	r22, r28
+ 158:	7d 0b       	sbc	r23, r29
+ 15a:	68 3e       	cpi	r22, 0xE8	; 232
+ 15c:	73 40       	sbci	r23, 0x03	; 3
+ 15e:	68 f0       	brcs	.+26     	; 0x17a <main+0x5a>
+ 160:	c1 14       	cp	r12, r1
+ 162:	d1 04       	cpc	r13, r1
+ 164:	e1 04       	cpc	r14, r1
+ 166:	f1 04       	cpc	r15, r1
+ 168:	61 f3       	breq	.-40     	; 0x142 <main+0x22>
 /home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:523
         ms--;
- 168:	81 e0       	ldi	r24, 0x01	; 1
- 16a:	c8 1a       	sub	r12, r24
- 16c:	d1 08       	sbc	r13, r1
- 16e:	e1 08       	sbc	r14, r1
- 170:	f1 08       	sbc	r15, r1
+ 16a:	81 e0       	ldi	r24, 0x01	; 1
+ 16c:	c8 1a       	sub	r12, r24
+ 16e:	d1 08       	sbc	r13, r1
+ 170:	e1 08       	sbc	r14, r1
+ 172:	f1 08       	sbc	r15, r1
 /home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:524
         start += 1000;
- 172:	c8 51       	subi	r28, 0x18	; 24
- 174:	dc 4f       	sbci	r29, 0xFC	; 252
- 176:	ed cf       	rjmp	.-38     	; 0x152 <main+0x32>
+ 174:	c8 51       	subi	r28, 0x18	; 24
+ 176:	dc 4f       	sbci	r29, 0xFC	; 252
+ 178:	ed cf       	rjmp	.-38     	; 0x154 <main+0x34>
 /home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:520
   void delay(unsigned long ms)
   {
@@ -385,19 +386,19 @@ delay():
     uint16_t start = (uint16_t)micros();
 
     while (ms > 0) {
- 178:	c1 14       	cp	r12, r1
- 17a:	d1 04       	cpc	r13, r1
- 17c:	e1 04       	cpc	r14, r1
- 17e:	f1 04       	cpc	r15, r1
- 180:	41 f7       	brne	.-48     	; 0x152 <main+0x32>
- 182:	de cf       	rjmp	.-68     	; 0x140 <main+0x20>
+ 17a:	c1 14       	cp	r12, r1
+ 17c:	d1 04       	cpc	r13, r1
+ 17e:	e1 04       	cpc	r14, r1
+ 180:	f1 04       	cpc	r15, r1
+ 182:	41 f7       	brne	.-48     	; 0x154 <main+0x34>
+ 184:	de cf       	rjmp	.-68     	; 0x142 <main+0x22>
 
-00000184 <_exit>:
+00000186 <_exit>:
 exit():
-/home/jenkins/workspace/avr-gcc-staging/label/debian7-x86_64/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2278
- 184:	f8 94       	cli
+/home/admin/build/toolchain-avr-special/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2278
+ 186:	f8 94       	cli
 
-00000186 <__stop_program>:
+00000188 <__stop_program>:
 __stop_program():
-/home/jenkins/workspace/avr-gcc-staging/label/debian7-x86_64/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2280
- 186:	ff cf       	rjmp	.-2      	; 0x186 <__stop_program>
+/home/admin/build/toolchain-avr-special/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2280
+ 188:	ff cf       	rjmp	.-2      	; 0x188 <__stop_program>

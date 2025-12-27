@@ -6,6 +6,6 @@ void setup()
 
 void loop()
 {
-  PINB |= 1; // toggle PB0
+  PINB = 1; // toggle PB0
   delay(500);
 }
