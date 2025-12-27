@@ -35,6 +35,9 @@ Limitations:
 // PER arch config
 
 // data pin (PB2) suitable for both ATTiny84 and ATTiny85
+#define DATA_PIN PINB
+#define DATA_DDR DDRB
+#define DATA_PORT PORTB
 #define BOOT_PIN 2
 #define BB ((unsigned char)(1U<<BOOT_PIN))
 // where is the boot loader and original reset vector
@@ -78,13 +81,13 @@ Limitations:
     unsigned char buf, x, y, z, page[2 + PAGE_SIZE];
 
     // config pin as input (and PORT will be low when toggled to an output)
-    DDRB &= ~BB;
-    PORTB |= BB; // enable internal pullup so if the target is fielded with the pin floating it won't randomly enter the bootloader.
+    DATA_DDR &= ~BB;
+    DATA_PORT |= BB; // enable internal pullup so if the target is fielded with the pin floating it won't randomly enter the bootloader.
 
     // sample the pin for 1ms the adapter holds the pin low for 150ms after releasing RESET
     // which means we have to boot up and capture at 1/150th of the window.
     for (y = x = 0; x < 100; x++) {
-      if (!(PINB & BB)) {
+      if (!(DATA_PIN & BB)) {
         ++y;
       }
       DELAY_US(10);
@@ -96,16 +99,16 @@ Limitations:
     }
 
     // We don't know where in the 150mS post-RESET window we're in so syncup to the adapter going high.
-    while (!(PINB & BB));
+    while (!(DATA_PIN & BB));
 
     // now we hold the line low for 100uS
     // set LOW so we don't accidentally output HIGH while a sink is present.
-    PORTB &= ~BB;
+    DATA_PORT &= ~BB;
     // enable output
-    DDRB |= BB;
+    DATA_DDR |= BB;
     DELAY_US(100);
     // at this point we don't need the internal pullup since we're entering the bootloader so one is assumed to be present.
-    DDRB &= ~BB;
+    DATA_DDR &= ~BB;
  
     for (;;) {
       // now read the command byte
@@ -114,13 +117,13 @@ y = 0;
       while (z--) {
         for (x = 0; x < 8; x++) {
           // wait for low
-          while ((PINB & BB));
+          while ((DATA_PIN & BB));
           // wait till middle
           DELAY_US(PULSE_MID);
           buf <<= 1;
-          buf |= (((unsigned char)PINB) >> BOOT_PIN) & 1;
+          buf |= (((unsigned char)DATA_PIN) >> BOOT_PIN) & 1;
           // wait for it to go high
-          while (!(PINB & BB));
+          while (!(DATA_PIN & BB));
         }
         if (!y && buf < (BOOT_ADDR >> PAGE_SHIFT)) {
           // read another PAGE_SIZE bytes (page+chk)
@@ -211,16 +214,16 @@ sendcode:
         buf = page[y];
         for (x = 0; x < 8; x++) {
           // set output direction and low
-          DDRB |= BB;
+          DATA_DDR |= BB;
           if (buf & 0x80) {
             // high bit == delay 5uS, set high, then delay 15uS
             DELAY_US(PULSE_A); 
-            DDRB &= ~BB;
+            DATA_DDR &= ~BB;
             DELAY_US(PULSE_B);
           } else {
             // low bit == delay 15uS, then high then delay 5uS
             DELAY_US(PULSE_B); 
-            DDRB &= ~BB;
+            DATA_DDR &= ~BB;
             DELAY_US(PULSE_A);
           }
           buf <<= 1;
