@@ -162,8 +162,8 @@ int main(int argc, char *argv[]) {
     printf("Read %d bytes...\n", total);
     for (int x = 0; x < total; x++) printf("%02x ", buf[x]);
     printf("\n");
+//	return 0;
 #endif    
-	return 0;
 	
     // 2. Upload and Verify
     for (int p = 0; p < MAX_PAGES; p++) {
@@ -174,19 +174,27 @@ int main(int argc, char *argv[]) {
         memcpy(write_pkt + 1, &flash_buffer[p * PAGE_SIZE], PAGE_SIZE);
         write_pkt[65] = calc_chk(write_pkt + 1);
 
-        printf("Page %02d: Writing...\n", p);
+        printf("Page %02d: Writing...", p);
+        fflush(stdout);
         write(fd, write_pkt, 66);
         tcdrain(fd);
         
         uint8_t ack = 0;
         read(fd, &ack, 1);
-        if (ack != 0x54) { printf("FAILED Write (0x%02X)\n", ack); return 1; }
+        if (ack != 0x54) { 
+			printf("FAILED Write (0x%02X)\n", ack); 
+			return 1;
+		} else {
+			printf("OK!...");
+			fflush(stdout);
+		}
 
         printf("Verifying... ");
+		fflush(stdout);
         uint8_t read_cmd = 128 + p;
         write(fd, &read_cmd, 1);
         
-        uint8_t rx_buf[65]; // 64 data + 1 ack
+        uint8_t rx_buf[65]; // 1 ack + 64 data
         int n = 0, total = 0;
         while(total < 65 && (n = read(fd, rx_buf + total, 65 - total)) > 0) total += n;
 
@@ -194,6 +202,10 @@ int main(int argc, char *argv[]) {
             printf("OK\n");
         } else {
             printf("MISMATCH!\n");
+            printf("ACK byte: %02x\n", rx_buf[0]);
+            for (int x = 0; x < 64; x++) {
+				printf("byte %2d: %02x %02x (%02x)\n", x, flash_buffer[p * PAGE_SIZE + x], rx_buf[1+x], flash_buffer[p * PAGE_SIZE + x] ^ rx_buf[1+x]);
+			}
             return 1;
         }
     }

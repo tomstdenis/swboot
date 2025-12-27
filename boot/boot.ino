@@ -18,10 +18,10 @@ Limitations:
 */
 
 // REALLY slow...(use this if your line has high capacitance or a weak pullup, uses a 80uS period)
-//#define REALLY_SLOW_PULSE
+#define REALLY_SLOW_PULSE
 
 // use SLOW_PULSE (40uS) if your target doesn't have an external clock
-#define SLOW_PULSE
+//#define SLOW_PULSE
 
 #ifdef REALLY_SLOW_PULSE
 // 80uS timebase
@@ -196,7 +196,7 @@ y = 0;
         if (buf != page[PAGE_SIZE+1]) {
           page[0] = 0x83;
         } else {
-          uint16_t addr = (uint16_t)pageaddr << PAGE_SIZE; 
+          uint16_t addr = (uint16_t)pageaddr << PAGE_SHIFT; 
 
           // --- 1. WAIT & ERASE ---
           asm volatile (
@@ -204,6 +204,10 @@ y = 0;
               "ldi r16, 0x03 \n\t"      // Page Erase command
               "out %1, r16 \n\t"
               "spm \n\t"
+              "wait_spm2: \n\t"          // wait for SPM to finish
+              "in r16, %1 \n\t"         // Read SPMCSR
+              "sbrc r16, 0 \n\t"        // Skip if SELFPRGEN (bit 0) is clear
+              "rjmp wait_spm2 \n\t"
               :
               : "r" (addr), "I" (_SFR_IO_ADDR(SPMCSR))
               : "r16", "r30", "r31"
@@ -219,6 +223,11 @@ y = 0;
                   "ldi r16, 0x01 \n\t"  // Fill Page Buffer command
                   "out %2, r16 \n\t"
                   "spm \n\t"
+                  "wait_spm3: \n\t"          // wait for SPM to finish
+                  "in r16, %2 \n\t"         // Read SPMCSR
+                  "sbrc r16, 0 \n\t"        // Skip if SELFPRGEN (bit 0) is clear
+                  "rjmp wait_spm3 \n\t"
+                  "eor r1, r1 \n\t"
                   :
                   : "r" (addr + x), "r" (word), "I" (_SFR_IO_ADDR(SPMCSR))
                   : "r16", "r0", "r1", "r30", "r31"
@@ -230,11 +239,16 @@ y = 0;
               "ldi r16, 0x05 \n\t"      // Page Write command
               "out %1, r16 \n\t"
               "spm \n\t"
+              "wait_spm: \n\t"          // wait for SPM to finish
+              "in r16, %1 \n\t"         // Read SPMCSR
+              "sbrc r16, 0 \n\t"        // Skip if SELFPRGEN (bit 0) is clear
+              "rjmp wait_spm \n\t"
               :
               : "r" (addr), "I" (_SFR_IO_ADDR(SPMCSR))
               : "r16", "r30", "r31"
           );
           // write back an ACK byte of 0x54
+          DELAY_US(PULSE_A);
           page[0] = 0x54;
         }
       }

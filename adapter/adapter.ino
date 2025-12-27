@@ -55,10 +55,10 @@ Finally I also plan to put a ~200 Ohm resistor in series A's data wire so that i
 #define PAGE_LIMIT 119
 
 // REALLY slow...(use this if your line has high capacitance or a weak pullup, uses a 80uS period)
-//#define REALLY_SLOW_PULSE
+#define REALLY_SLOW_PULSE
 
 // use SLOW_PULSE (40uS) if your target doesn't have an external clock
-#define SLOW_PULSE
+//#define SLOW_PULSE
 
 #ifdef REALLY_SLOW_PULSE
 // 80uS timebase
@@ -108,14 +108,14 @@ unsigned char ow_readbyte()
   for (x = y = 0; x < 8; x++) {
     // wait for low
     z = 0;
-    while (PIN_PIN & BWIRE) if (!(++z & 0xFFFFFF)) return 1; // 0x1000000 loops at 1 cycle every 1/16th of a uS is a bit over 1 second
+    while (PIN_PIN & BWIRE) if (!(++z & 0xFFFFFFF)) return 1; // 0x1000000 loops at 1 cycle every 1/16th of a uS is a bit over 1 second
     // sample at the mid point
     DELAY_US(PULSE_MID);
     y <<= 1;
     y |= (PIN_PIN >> PIN_WIRE) & 1;
     // wait for high
     z = 0;
-    while (!(PIN_PIN & BWIRE)) if (!(++z & 0xFFFFFF)) return 2;
+    while (!(PIN_PIN & BWIRE)) if (!(++z & 0xFFFFFFF)) return 2;
   }
   return y;
 }
@@ -245,8 +245,10 @@ void loop() {
       do_reset();
     }
     ow_writebyte(payload[0]);
+    DELAY_US(PULSE_A); // pause the short pulse waiting for the other side to get ready to send
     ow_readbytes(payload, 65); // payload + ACK byte
     Serial.write(payload, 65);
+    DELAY_US(5000); // pause 1ms between page writes
   } else if (payload[0] >= 120 && payload[0] <= 126) {
     // we're done programming
     ow_writebyte(payload[0]);
