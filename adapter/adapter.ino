@@ -268,8 +268,12 @@ void loop() {
   } else if (payload[0] == 121) {
     // power control
     payload[0] = Serial.read();
-    target_power(payload[0] & 1);
-    target_data_ch(payload[0] & 2);
+    if (payload[0] & 2) {
+      target_power(payload[0] & 1);
+    }
+    if (payload[0] & 4) {
+      target_data_ch(payload[0] & 8);
+    }
     Serial.write(0x54); // ACK
   } else if (payload[0] == 127) {
     // Init packet to check H - A connection
