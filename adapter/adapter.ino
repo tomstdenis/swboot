@@ -54,11 +54,11 @@ Finally I also plan to put a ~200 Ohm resistor in series A's data wire so that i
 
 #define PAGE_LIMIT 119
 
-// use SLOW_PULSE if your target doesn't have an external clock
-// #define SLOW_PULSE
+// REALLY slow...(use this if your line has high capacitance or a weak pullup, uses a 80uS period)
+//#define REALLY_SLOW_PULSE
 
-// REALLY slow...
-#define REALLY_SLOW_PULSE
+// use SLOW_PULSE (40uS) if your target doesn't have an external clock
+#define SLOW_PULSE
 
 #ifdef REALLY_SLOW_PULSE
 // 80uS timebase

@@ -17,11 +17,11 @@ Limitations:
   - If you enable SLOW_PULSE make sure you do so on the adapter too.  It should only be used if clock skew is too much for 20uS pulses.
 */
 
-// use SLOW_PULSE if your target doesn't have an external clock
-// #define SLOW_PULSE
+// REALLY slow...(use this if your line has high capacitance or a weak pullup, uses a 80uS period)
+//#define REALLY_SLOW_PULSE
 
-// REALLY slow...
-#define REALLY_SLOW_PULSE
+// use SLOW_PULSE (40uS) if your target doesn't have an external clock
+#define SLOW_PULSE
 
 #ifdef REALLY_SLOW_PULSE
 // 80uS timebase
@@ -89,8 +89,7 @@ Limitations:
 
     // config pin as input (and PORT will be low when toggled to an output)
     DATA_DDR &= ~BB;
-//    DATA_PORT |= BB; // enable internal pullup so if the target is fielded with the pin floating it won't randomly enter the bootloader.
-    DATA_PORT &= ~BB;
+    DATA_PORT |= BB; // enable internal pullup so if the target is fielded with the pin floating it won't randomly enter the bootloader.
 
 #if 0
     DATA_PORT &= ~BB;
@@ -168,7 +167,6 @@ y = 0;
       if (buf == 120) {         // page 120 == done
         goto done;
       } else if (buf == 127) {  // page 127 == send 'H' back
-DDRB |= 1; PORTB |= 1; // turn PB0 HIGH
         page[0] = 'H';
       } else if (buf >= 128) {  // page 128+ == read back page-128 to the adapter
           // buf was the command, let's assume bits 0-6 are the page address
@@ -258,7 +256,6 @@ DDRB |= 1; PORTB |= 1; // turn PB0 HIGH
           buf <<= 1;
         }
       }
-PORTB &= ~1; // Turn PB0 LOW
     }
 
     // our uploader program hijacks the sketches reset vector and stores it at 0x1DFE
