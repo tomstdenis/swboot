@@ -65,7 +65,7 @@ void parse_hex(const char *filename) {
         uint8_t len, type;
         uint16_t addr;
         sscanf(line + 1, "%2hhx%4hx%2hhx", &len, &addr, &type);
-        if (type == 0 && addr < BOOT_START) {
+        if (type == 0 && (addr + len)	 < BOOT_START) {
             for (int i = 0; i < len; i++) {
                 sscanf(line + 9 + (i * 2), "%2hhx", &flash_buffer[addr + i]);
                 dirty_pages[(addr + i) / PAGE_SIZE] = 1;
@@ -73,6 +73,32 @@ void parse_hex(const char *filename) {
         }
     }
     fclose(f);
+
+	// if the RESET vector of the code to upload is an RJMP then we patch it
+	// to jump to 0x1E00 instead, we put a re-encoded jump at 0x1DFE and
+	// jump there if the bootloader isn't being used.
+    uint16_t orig = flash_buffer[0] | (flash_buffer[1] << 8);
+    if ((orig & 0xF000) == 0xC000) {
+		// decode the jump from 0x0000 to orig 
+        uint16_t app_start = decode_rjmp(0, orig);
+        // the patched RJMP relative to 0x1DFE
+        uint16_t patched = encode_rjmp(VEC_PATCH_ADDR, app_start);
+        // store the jump to the application
+        flash_buffer[VEC_PATCH_ADDR] = patched & 0xFF;
+        flash_buffer[VEC_PATCH_ADDR+1] = patched >> 8;
+        dirty_pages[VEC_PATCH_ADDR / PAGE_SIZE] = 1;
+        // store the jump to our boot loader at RESET vector
+        uint16_t boot_j = encode_rjmp(0, BOOT_START);
+        flash_buffer[0] = boot_j & 0xFF; flash_buffer[1] = boot_j >> 8;
+    }
+    
+    unsigned x;
+    for (x = 0; x < MAX_PAGES; x++) {
+		if (dirty_pages[x]) {
+			printf("Page %u dirty (0x%04x)\n", x, x << 6);
+		}
+	}
+	exit(0);
 }
 
 uint8_t calc_chk(uint8_t *data) {
@@ -86,18 +112,6 @@ int main(int argc, char *argv[]) {
 
     parse_hex(argv[2]);
     
-    // Patch Vectors
-    uint16_t orig = flash_buffer[0] | (flash_buffer[1] << 8);
-    if ((orig & 0xF000) == 0xC000) {
-        uint16_t app_start = decode_rjmp(0, orig);
-        uint16_t patched = encode_rjmp(VEC_PATCH_ADDR, app_start);
-        flash_buffer[VEC_PATCH_ADDR] = patched & 0xFF;
-        flash_buffer[VEC_PATCH_ADDR+1] = patched >> 8;
-        dirty_pages[VEC_PATCH_ADDR / PAGE_SIZE] = 1;
-        uint16_t boot_j = encode_rjmp(0, BOOT_START);
-        flash_buffer[0] = boot_j & 0xFF; flash_buffer[1] = boot_j >> 8;
-    }
-
     int fd = open(argv[1], O_RDWR | O_NOCTTY);
     if (fd < 0) { perror("Open port"); return 1; }
     set_interface_attribs(fd, B9600);
@@ -164,7 +178,7 @@ int main(int argc, char *argv[]) {
         int n = 0, total = 0;
         while(total < 65 && (n = read(fd, rx_buf + total, 65 - total)) > 0) total += n;
 
-        if (memcmp(rx_buf, &flash_buffer[p * PAGE_SIZE], PAGE_SIZE) == 0) {
+        if (rx_buf[0] == 0x54 && memcmp(rx_buf+1, &flash_buffer[p * PAGE_SIZE], PAGE_SIZE) == 0) {
             printf("OK\n");
         } else {
             printf("MISMATCH!\n");

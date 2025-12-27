@@ -164,12 +164,12 @@ top:
     // reset the target
     PIN_DDR |= BWIRE;       // set WIRE as output should put line low
     PIN_PORT &= ~BRESET;    // set RESET low (halts the target)
-    DELAY_US(1000UL * 250);  // hold low for 250ms
+    DELAY_US(1000UL * 250);  // hold reset for 250ms
     PIN_PORT |= BRESET;     // set RESET high (reboots the target)
     DELAY_US(1000UL * 150);  // wait 150ms for it to power up
     PIN_DDR &= ~BWIRE;      // reset wire to input, line should go high
 
-    // now sample 100 for low
+    // now sample 100us for low
     for (x = y = 0; x < 100; x++) {
       if (!(PIN_PIN & BWIRE)) {
         ++y;
@@ -183,6 +183,7 @@ top:
     }
 
     // wait for line to go high with timeout (10ms)
+    // the previous task from the target was 0.1ms long so a 10ms timeout is more than generous
     x = 0;
     while (!(PIN_PIN & BWIRE)) {
       DELAY_US(1000);
