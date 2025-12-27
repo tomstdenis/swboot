@@ -10,6 +10,11 @@ To Program
     - Ideally configure it per the apps notes (use an external clock, put a 1kOhm resistor on the data line, put a 100nF cap in series with the RESET of the target)
   - Use swclient program on your Linux host to send an Intel HEX file through swadapter to swboot.
     - swclient formats IHEX into completed pages, patches the reset vector, and then streams commands over serial to swadapter who in turn streams it over single wire to swboot.
+
+Limitations:
+  - Your program cannot be larger than 8192 - 514 == 7678 bytes.
+  - The data pin connected to high impedence on the target's circuit during programming (e.g. nothing to drive it high or low)
+  - If you enable SLOW_PULSE make sure you do so on the adapter too.  It should only be used if clock skew is too much for 20uS pulses.
 */
 
 // use SLOW_PULSE if your target doesn't have an external clock
@@ -98,7 +103,7 @@ To Program
     // enable output
     DDRB |= BB;
     DELAY_US(100);
-    // at this point we don't need the internal pullup since we're entering the bootloader
+    // at this point we don't need the internal pullup since we're entering the bootloader so one is assumed to be present.
     DDRB &= ~BB;
 
     for (;;) {

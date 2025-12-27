@@ -65,7 +65,7 @@ void parse_hex(const char *filename) {
         uint8_t len, type;
         uint16_t addr;
         sscanf(line + 1, "%2hhx%4hx%2hhx", &len, &addr, &type);
-        if (type == 0 && (addr + len)	 < BOOT_START) {
+        if (type == 0 && (addr + len) < BOOT_START) {
             for (int i = 0; i < len; i++) {
                 sscanf(line + 9 + (i * 2), "%2hhx", &flash_buffer[addr + i]);
                 dirty_pages[(addr + i) / PAGE_SIZE] = 1;
@@ -92,10 +92,14 @@ void parse_hex(const char *filename) {
         flash_buffer[0] = boot_j & 0xFF; flash_buffer[1] = boot_j >> 8;
     }
     
-    unsigned x;
+    unsigned x, y;
     for (x = 0; x < MAX_PAGES; x++) {
 		if (dirty_pages[x]) {
-			printf("Page %u dirty (0x%04x)\n", x, x << 6);
+			printf("Page %3u dirty (0x%04x): ", x, x << 6);
+			for (y = 0; y < PAGE_SIZE; y++) {
+				printf("%02x ", flash_buffer[x*64 + y]);
+			}
+			printf("\n");
 		}
 	}
 	exit(0);
@@ -174,7 +178,7 @@ int main(int argc, char *argv[]) {
         uint8_t read_cmd = 128 + p;
         write(fd, &read_cmd, 1);
         
-        uint8_t rx_buf[65]; // 64 data + 1 chk/ack
+        uint8_t rx_buf[65]; // 64 data + 1 ack
         int n = 0, total = 0;
         while(total < 65 && (n = read(fd, rx_buf + total, 65 - total)) > 0) total += n;
 
