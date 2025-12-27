@@ -89,6 +89,29 @@ e.g.
 
 Tip: You can use CTRL+ALT+S to build and export your app as a hex file (look for build/${core}/${appname}.ino.hex under your sketches directory)
 
+# One-wire spec
+
+The comms is essentially like dallas 1-wire.  There should be an external pullup on the line and every device only outputs a LOW (sink) never a HIGH (source).
+The way you read a bit is define as 
+
+- wait for line to go LOW
+- delay for (PULSE_A+PULSE_B)/2 microseconds
+- sample line for bit
+- wait for line to go HIGH
+- repeat as required
+
+Basically we're sampling in the middle of where it would change.  To write a bit you do
+
+- set line output LOW
+- if the bit is a 0, delay PULSE_B uS, switch the line to an input (make it high), delay PULSE_A uS
+- if the bit is a 1, delay PULSE_A uS, switch the line to an input (make it high), delay PULSE_B uS
+
+The real trick to the protocol is writing is blind.  Reading is synchronized (wait for low).  So always make sure
+the consumer is ready BEFORE the producer, and for fun, these roles change often enough...
+
+At the default 80uS pulse timing (REALLY_SLOW_PULSE) that's about 12.5kbit/sec (minus overhead).  Not winning any awards but gets the job done and more
+importantly works off the RC internal clock when fed from the Vcc pin of a pro-micro (so like there's voltage drop, etc).
+
 # Troubleshooting the bootloader
 
 - Ensure you have the configuration changes required (reload the IDE after changing these)
