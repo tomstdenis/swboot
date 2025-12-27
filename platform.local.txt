@@ -1,0 +1,1 @@
+compiler.c.elf.extra_flags=-Wl,--section-start=.bootloader=0x1E00

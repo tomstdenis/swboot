@@ -148,7 +148,7 @@ int main(int argc, char *argv[]) {
     }
     if (!connected) { printf("Could not find swadapter.\n"); return 1; }
     
-#if 1
+#if 0
     // test try to read page at 0x1E00
     unsigned char buf[128];
     buf[0] = 0x80 | (0x1E00 >> 6);

@@ -91,29 +91,6 @@ Limitations:
     DATA_DDR &= ~BB;
     DATA_PORT |= BB; // enable internal pullup so if the target is fielded with the pin floating it won't randomly enter the bootloader.
 
-#if 0
-    DATA_PORT &= ~BB;
-    y = 0;
-    for (;;) {
-      buf = y++;
-      for (x = 0; x < 8; x++) {
-        // set output direction and low
-        DATA_DDR |= BB;
-        if (buf & 0x80) {
-          DELAY_US(PULSE_A); 
-          DATA_DDR &= ~BB;
-          DELAY_US(PULSE_B);
-        } else {
-          DELAY_US(PULSE_B); 
-          DATA_DDR &= ~BB;
-          DELAY_US(PULSE_A);
-        }
-        buf <<= 1;
-      }
-      DELAY_US(PULSE_A+PULSE_B);
-    }
-  #endif
-
     // sample the pin for 1ms the adapter holds the pin low for 150ms after releasing RESET
     // which means we have to boot up and capture at 1/150th of the window.
     for (y = x = 0; x < 100; x++) {
