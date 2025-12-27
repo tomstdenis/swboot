@@ -23,14 +23,14 @@ This project uses the ATTinyCore board provider.  You need to update it to suppo
 
 First add the extended fuse changes to ~/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/boards.txt:
 
-attinyx4.bootloader.extended_fuses=0xFE
-attinyx5.bootloader.extended_fuses=0xFE
+- attinyx4.bootloader.extended_fuses=0xFE
+- attinyx5.bootloader.extended_fuses=0xFE
 
 (and others as you need them).  This enables the SPM instruction for self-programming.
 
 Next, add the following line to a new file "platform.local.txt" in the same directory as boards.txt:
 
-compiler.c.elf.extra_flags=-Wl,--section-start=.bootloader=0x1E00
+- compiler.c.elf.extra_flags=-Wl,--section-start=.bootloader=0x1E00
 
 This tells the compiler where to locate the ".bootloader" section
 
@@ -88,6 +88,27 @@ e.g.
 ./client /dev/ttyACM0 myapplication.ino.hex
 
 Tip: You can use CTRL+ALT+S to build and export your app as a hex file (look for build/${core}/${appname}.ino.hex under your sketches directory)
+
+# Troubleshooting the bootloader
+
+- Ensure you have the configuration changes required (reload the IDE after changing these)
+- Ensure you burn the extended fuse correctly 
+- Ensure that the PULSE timing is the same on the adapter and boot (as programmed on the devices)
+- Ensure there is a good pullup on the data wire
+
+If all that is going next check the data wire.  It should pulse after the adapter resets the device.  If you don't see this maybe you're on the wrong pin
+of the adapter's MCU?
+
+If you see that, you should see the target hold the line low for around 100uS after the adapter releases it high.
+
+If you see that, you should see the adapter write 127 (01111111) and the target respond with 'H'
+
+If you see that, chances are it's noise on the line.
+
+# Troubleshooting the Client
+
+If you don't see the "HELLO" reply try rebooting the MCU.  It can get stuck (I didn't add timeouts for everything).  Failing that be patient that app
+is going to be re-written...
 
 # TODO
 
