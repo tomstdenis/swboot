@@ -18,9 +18,16 @@ Limitations:
 */
 
 // use SLOW_PULSE if your target doesn't have an external clock
-#define SLOW_PULSE
+// #define SLOW_PULSE
 
-#ifdef SLOW_PULSE
+// REALLY slow...
+#define REALLY_SLOW_PULSE
+
+#ifdef REALLY_SLOW_PULSE
+// 80uS timebase
+#define PULSE_A 20
+#define PULSE_B 60
+#elif defined(SLOW_PULSE)
 // 40uS timebase
 #define PULSE_A 10
 #define PULSE_B 30
@@ -82,7 +89,31 @@ Limitations:
 
     // config pin as input (and PORT will be low when toggled to an output)
     DATA_DDR &= ~BB;
-    DATA_PORT |= BB; // enable internal pullup so if the target is fielded with the pin floating it won't randomly enter the bootloader.
+//    DATA_PORT |= BB; // enable internal pullup so if the target is fielded with the pin floating it won't randomly enter the bootloader.
+    DATA_PORT &= ~BB;
+
+#if 0
+    DATA_PORT &= ~BB;
+    y = 0;
+    for (;;) {
+      buf = y++;
+      for (x = 0; x < 8; x++) {
+        // set output direction and low
+        DATA_DDR |= BB;
+        if (buf & 0x80) {
+          DELAY_US(PULSE_A); 
+          DATA_DDR &= ~BB;
+          DELAY_US(PULSE_B);
+        } else {
+          DELAY_US(PULSE_B); 
+          DATA_DDR &= ~BB;
+          DELAY_US(PULSE_A);
+        }
+        buf <<= 1;
+      }
+      DELAY_US(PULSE_A+PULSE_B);
+    }
+  #endif
 
     // sample the pin for 1ms the adapter holds the pin low for 150ms after releasing RESET
     // which means we have to boot up and capture at 1/150th of the window.
@@ -112,6 +143,7 @@ Limitations:
  
     for (;;) {
       // now read the command byte
+      DELAY_US(PULSE_A);
 z = 1;
 y = 0;
       while (z--) {
@@ -136,8 +168,8 @@ y = 0;
       if (buf == 120) {         // page 120 == done
         goto done;
       } else if (buf == 127) {  // page 127 == send 'H' back
+DDRB |= 1; PORTB |= 1; // turn PB0 HIGH
         page[0] = 'H';
-        goto sendcode;
       } else if (buf >= 128) {  // page 128+ == read back page-128 to the adapter
           // buf was the command, let's assume bits 0-6 are the page address
           uint16_t addr = (uint16_t)(buf & 0x7F) << PAGE_SHIFT; 
@@ -155,7 +187,6 @@ y = 0;
           }
           page[0] = 0x54; // ACK byte
           z = 1 + PAGE_SIZE;
-          goto sendcode;
       } else if (buf < (BOOT_ADDR >> PAGE_SHIFT)) { // pages 0..0x1E00>>6 mean program the page
         unsigned char pageaddr = buf;
         // note we start at page[1] since page[0] is the PAGE byte 
@@ -166,62 +197,60 @@ y = 0;
         // checksum byte doesn't match send 0x83 back to host
         if (buf != page[PAGE_SIZE+1]) {
           page[0] = 0x83;
-          goto sendcode;
-        }
-        uint16_t addr = (uint16_t)pageaddr << PAGE_SIZE; 
+        } else {
+          uint16_t addr = (uint16_t)pageaddr << PAGE_SIZE; 
 
-        // --- 1. WAIT & ERASE ---
-        asm volatile (
-            "movw r30, %0 \n\t"       
-            "ldi r16, 0x03 \n\t"      // Page Erase command
-            "out %1, r16 \n\t"
-            "spm \n\t"
-            :
-            : "r" (addr), "I" (_SFR_IO_ADDR(SPMCSR))
-            : "r16", "r30", "r31"
-        );
+          // --- 1. WAIT & ERASE ---
+          asm volatile (
+              "movw r30, %0 \n\t"       
+              "ldi r16, 0x03 \n\t"      // Page Erase command
+              "out %1, r16 \n\t"
+              "spm \n\t"
+              :
+              : "r" (addr), "I" (_SFR_IO_ADDR(SPMCSR))
+              : "r16", "r30", "r31"
+          );
 
-        // --- 2. FILL BUFFER ---
-        for (x = 0; x < PAGE_SIZE; x += 2) {
-            uint16_t word = (uint16_t)page[x + 1] | ((uint16_t)page[x + 2] << 8);
-            
-            asm volatile (
-                "movw r30, %0 \n\t"   
-                "movw r0, %1 \n\t"    // r1:r0 = word data
-                "ldi r16, 0x01 \n\t"  // Fill Page Buffer command
-                "out %2, r16 \n\t"
-                "spm \n\t"
-                :
-                : "r" (addr + x), "r" (word), "I" (_SFR_IO_ADDR(SPMCSR))
-                : "r16", "r0", "r1", "r30", "r31"
-            );
+          // --- 2. FILL BUFFER ---
+          for (x = 0; x < PAGE_SIZE; x += 2) {
+              uint16_t word = (uint16_t)page[x + 1] | ((uint16_t)page[x + 2] << 8);
+              
+              asm volatile (
+                  "movw r30, %0 \n\t"   
+                  "movw r0, %1 \n\t"    // r1:r0 = word data
+                  "ldi r16, 0x01 \n\t"  // Fill Page Buffer command
+                  "out %2, r16 \n\t"
+                  "spm \n\t"
+                  :
+                  : "r" (addr + x), "r" (word), "I" (_SFR_IO_ADDR(SPMCSR))
+                  : "r16", "r0", "r1", "r30", "r31"
+              );
+          }
+          // --- 3. WAIT & WRITE PAGE ---
+          asm volatile (
+              "movw r30, %0 \n\t"
+              "ldi r16, 0x05 \n\t"      // Page Write command
+              "out %1, r16 \n\t"
+              "spm \n\t"
+              :
+              : "r" (addr), "I" (_SFR_IO_ADDR(SPMCSR))
+              : "r16", "r30", "r31"
+          );
+          // write back an ACK byte of 0x54
+          page[0] = 0x54;
         }
-        // --- 3. WAIT & WRITE PAGE ---
-        asm volatile (
-            "movw r30, %0 \n\t"
-            "ldi r16, 0x05 \n\t"      // Page Write command
-            "out %1, r16 \n\t"
-            "spm \n\t"
-            :
-            : "r" (addr), "I" (_SFR_IO_ADDR(SPMCSR))
-            : "r16", "r30", "r31"
-        );
       }
-      // write back an ACK byte of 0x54
-      page[0] = 0x54;
-sendcode:
+      DELAY_US(PULSE_A);
       for (y = 0; y < z; y++) {
         buf = page[y];
         for (x = 0; x < 8; x++) {
           // set output direction and low
           DATA_DDR |= BB;
           if (buf & 0x80) {
-            // high bit == delay 5uS, set high, then delay 15uS
             DELAY_US(PULSE_A); 
             DATA_DDR &= ~BB;
             DELAY_US(PULSE_B);
           } else {
-            // low bit == delay 15uS, then high then delay 5uS
             DELAY_US(PULSE_B); 
             DATA_DDR &= ~BB;
             DELAY_US(PULSE_A);
@@ -229,6 +258,7 @@ sendcode:
           buf <<= 1;
         }
       }
+PORTB &= ~1; // Turn PB0 LOW
     }
 
     // our uploader program hijacks the sketches reset vector and stores it at 0x1DFE

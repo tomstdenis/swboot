@@ -102,7 +102,6 @@ void parse_hex(const char *filename) {
 			printf("\n");
 		}
 	}
-	exit(0);
 }
 
 uint8_t calc_chk(uint8_t *data) {
@@ -118,9 +117,18 @@ int main(int argc, char *argv[]) {
     
     int fd = open(argv[1], O_RDWR | O_NOCTTY);
     if (fd < 0) { perror("Open port"); return 1; }
-    set_interface_attribs(fd, B9600);
+    set_interface_attribs(fd, B115200);
     usleep(500000); 
 	tcflush(fd, TCIOFLUSH);
+
+#if 0
+	for (;;) {
+		unsigned char c;
+		if (read(fd, &c, 1) == 1) {
+			printf("Read: %u\n", c);
+		}
+	}
+#endif
 
     // 1. Handshake with 3 retries
     int connected = 0;

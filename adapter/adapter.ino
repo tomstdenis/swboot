@@ -55,9 +55,16 @@ Finally I also plan to put a ~200 Ohm resistor in series A's data wire so that i
 #define PAGE_LIMIT 119
 
 // use SLOW_PULSE if your target doesn't have an external clock
-#define SLOW_PULSE
+// #define SLOW_PULSE
 
-#ifdef SLOW_PULSE
+// REALLY slow...
+#define REALLY_SLOW_PULSE
+
+#ifdef REALLY_SLOW_PULSE
+// 80uS timebase
+#define PULSE_A 20
+#define PULSE_B 60
+#elif defined(SLOW_PULSE)
 // 40uS timebase
 #define PULSE_A 10
 #define PULSE_B 30
@@ -88,7 +95,7 @@ Finally I also plan to put a ~200 Ohm resistor in series A's data wire so that i
 
 #define BRESET (1<<PIN_RESET)
 #define BWIRE (1<<PIN_WIRE)
-#define SERIAL_BAUD  9600     // baud rate for serial comms, lower values are more friendly for USI/bitbang targets
+#define SERIAL_BAUD  115200UL     // baud rate for serial comms, lower values are more friendly for USI/bitbang targets
 #define DELAY_US(us) __builtin_avr_delay_cycles((unsigned long)(us) * (F_CPU / 1000000UL))
 
 unsigned char is_reset = 0;
@@ -97,18 +104,18 @@ unsigned char is_reset = 0;
 unsigned char ow_readbyte()
 {
   unsigned char x, y;
-  unsigned long z;
+  unsigned z;
   for (x = y = 0; x < 8; x++) {
     // wait for low
     z = 0;
-    while (PIN_PIN & BWIRE) if (!(++z & 0x3FFFFF)) return 0;
+    while (PIN_PIN & BWIRE) if (!(++z & 0x3FFF)) return 1; // 0x9FF == 16 cycles per uS * 160uS should be more than enough to tell we're in a timeout
     // sample at the mid point
     DELAY_US(PULSE_MID);
     y <<= 1;
     y |= (PIN_PIN >> PIN_WIRE) & 1;
     // wait for high
     z = 0;
-    while (!(PIN_PIN & BWIRE)) if (!(++z & 0x3FFFFF)) return 0;
+    while (!(PIN_PIN & BWIRE)) if (!(++z & 0x3FFF)) return 2;
   }
   return y;
 }
@@ -123,6 +130,7 @@ void ow_readbytes(unsigned char *dst, unsigned char len)
 void ow_writebyte(unsigned char y)
 {
   unsigned char x;
+  DELAY_US(PULSE_A);
   for (x = 0; x < 8; x++) {
     PIN_DDR |= BWIRE; // toggle to output 
     if (y & 0x80) {
@@ -193,8 +201,12 @@ top:
     }
 
     // try to send the page == 127 to recv 'H' back
+    DELAY_US(PULSE_A+PULSE_B);
     ow_writebyte(127);
-  } while (ow_readbyte() != 'H');
+    //DELAY_US(PULSE_A); // pause the short pulse waiting for the other side to get ready to send
+    x = ow_readbyte();
+//    Serial.write(x);
+  } while (x != 'H');
   is_reset = 1;
 }
 
@@ -202,13 +214,9 @@ void loop() {
   unsigned char payload[66];
 
 #if 0
-  if (!(PIN_PIN & (1<<6))) {
-    if (Serial.available()) {
-      // echo anything we read
-      Serial.write(Serial.read());
-    }
-    return;
-  }
+  payload[0] = ow_readbyte();
+  Serial.write(payload[0]);
+  return;
 #endif
 
   // block while no input
@@ -228,6 +236,7 @@ void loop() {
       do_reset();
     }
     ow_writebytes(payload, 66);
+    DELAY_US(PULSE_A); // pause the short pulse waiting for the other side to get ready to send
     Serial.write(ow_readbyte());
   } else if (payload[0] >= 128) {
     // reading a page, transmit page and then read
