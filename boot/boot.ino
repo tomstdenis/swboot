@@ -32,13 +32,24 @@ Limitations:
 
 #define PULSE_MID ((PULSE_A+PULSE_B)/2)
 
+// PER arch config
 
-  // to read a bit sync to LOW, wait 10uS then sample pin
-  // assumes 8MHz or 16MHz clock
-  // use PORTB always (leaves port A's 8-bits untouched on tiny84's )
-  #define BOOT_PIN 2
-  #define BB ((unsigned char)(1U<<BOOT_PIN))
-  #define DELAY_US(us) __builtin_avr_delay_cycles((unsigned long)(us) * (F_CPU / 1000000UL))
+// data pin (PB2) suitable for both ATTiny84 and ATTiny85
+#define BOOT_PIN 2
+#define BB ((unsigned char)(1U<<BOOT_PIN))
+// where is the boot loader and original reset vector
+#define BOOT_ADDR 0x1E00
+// page size
+#define PAGE_SHIFT 6
+
+
+// these are computed from arch specific values
+#ifndef ORIG_RESET_VECTOR
+#define ORIG_RESET_VECTOR (BOOT_ADDR-2)
+#endif
+#define PAGE_SIZE (1U<<PAGE_SHIFT)
+
+#define DELAY_US(us) __builtin_avr_delay_cycles((unsigned long)(us) * (F_CPU / 1000000UL))
   void __attribute__((section(".bootloader"), naked, used, noinline, noreturn)) setup()
   {
     // initialize stack pointer to RAMEND-80 bytes 
@@ -64,7 +75,7 @@ Limitations:
       :
       : "i" (RAMEND), [sreg] "I"(_SFR_IO_ADDR(SREG)), [mcusr] "I" (_SFR_IO_ADDR(MCUSR)),[wdtcsr] "I" (0x21): "r16"
   );
-    unsigned char buf, x, y, z, page[65];
+    unsigned char buf, x, y, z, page[2 + PAGE_SIZE];
 
     // config pin as input (and PORT will be low when toggled to an output)
     DDRB &= ~BB;
@@ -95,20 +106,29 @@ Limitations:
     DELAY_US(100);
     // at this point we don't need the internal pullup since we're entering the bootloader so one is assumed to be present.
     DDRB &= ~BB;
-
+ 
     for (;;) {
       // now read the command byte
-      for (x = 0; x < 8; x++) {
-        // wait for low
-        while ((PINB & BB));
-        // wait till middle
-        DELAY_US(PULSE_MID);
-        buf <<= 1;
-        buf |= (((unsigned char)PINB) >> BOOT_PIN) & 1;
-        // wait for it to go high
-        while (!(PINB & BB));
+z = 1;
+y = 0;
+      while (z--) {
+        for (x = 0; x < 8; x++) {
+          // wait for low
+          while ((PINB & BB));
+          // wait till middle
+          DELAY_US(PULSE_MID);
+          buf <<= 1;
+          buf |= (((unsigned char)PINB) >> BOOT_PIN) & 1;
+          // wait for it to go high
+          while (!(PINB & BB));
+        }
+        if (!y && buf < (BOOT_ADDR >> PAGE_SHIFT)) {
+          // read another PAGE_SIZE bytes (page+chk)
+          z = PAGE_SIZE + 1;
+        }
+        page[y++] = buf;
       }
-
+      buf = page[0];
       z = 1;
       if (buf == 120) {         // page 120 == done
         goto done;
@@ -117,9 +137,9 @@ Limitations:
         goto sendcode;
       } else if (buf >= 128) {  // page 128+ == read back page-128 to the adapter
           // buf was the command, let's assume bits 0-6 are the page address
-          uint16_t addr = (uint16_t)(buf & 0x7F) << 6; 
+          uint16_t addr = (uint16_t)(buf & 0x7F) << PAGE_SHIFT; 
 
-          for (y = 0; y < 64; y++) {
+          for (y = 0; y < PAGE_SIZE; y++) {
               // Read byte from Flash
               asm volatile(
                   "movw r30, %1 \n\t"
@@ -131,75 +151,58 @@ Limitations:
               page[y+1] = buf;
           }
           page[0] = 0x54; // ACK byte
-          z = 65;
+          z = 1 + PAGE_SIZE;
           goto sendcode;
-      } else if (buf < (0x1E00U >> 6)) { // pages 0..0x1E00>>6 mean program the page
+      } else if (buf < (BOOT_ADDR >> PAGE_SHIFT)) { // pages 0..0x1E00>>6 mean program the page
         unsigned char pageaddr = buf;
-        // receive a 64-byte page + checksum
-        for (y = 0; y < 65; y++) {
-          for (x = 0; x < 8; x++) {
-            // wait for low
-            while (PINB & BB);
-            // wait till middle
-            DELAY_US(PULSE_MID);
-            buf <<= 1;
-            buf |= (((unsigned char)PINB) >> BOOT_PIN) & 1;
-            // wait for high
-            while (!(PINB & BB));
-          }
-          page[y] = buf;
-        }
+        // note we start at page[1] since page[0] is the PAGE byte 
         // compute checksum
-        for (x = 0, buf = 0xAA; x < 64; x++) {
-          buf += x ^ page[x];
+        for (x = 0, buf = 0xAA; x < PAGE_SIZE; x++) {
+          buf += x ^ page[x + 1];
         }
         // checksum byte doesn't match send 0x83 back to host
-        if (buf != page[64]) {
+        if (buf != page[PAGE_SIZE+1]) {
           page[0] = 0x83;
           goto sendcode;
         }
-        // ensure we're not writing to the boot loader
-        if (pageaddr < (0x1E00U >> 6)) {
-          uint16_t addr = (uint16_t)pageaddr << 6; 
+        uint16_t addr = (uint16_t)pageaddr << PAGE_SIZE; 
 
-          // --- 1. WAIT & ERASE ---
-          asm volatile (
-              "movw r30, %0 \n\t"       
-              "ldi r16, 0x03 \n\t"      // Page Erase command
-              "out %1, r16 \n\t"
-              "spm \n\t"
-              :
-              : "r" (addr), "I" (_SFR_IO_ADDR(SPMCSR))
-              : "r16", "r30", "r31"
-          );
+        // --- 1. WAIT & ERASE ---
+        asm volatile (
+            "movw r30, %0 \n\t"       
+            "ldi r16, 0x03 \n\t"      // Page Erase command
+            "out %1, r16 \n\t"
+            "spm \n\t"
+            :
+            : "r" (addr), "I" (_SFR_IO_ADDR(SPMCSR))
+            : "r16", "r30", "r31"
+        );
 
-          // --- 2. FILL BUFFER ---
-          for (x = 0; x < 64; x += 2) {
-              uint16_t word = (uint16_t)page[x] | ((uint16_t)page[x + 1] << 8);
-              
-              asm volatile (
-                  "movw r30, %0 \n\t"   
-                  "movw r0, %1 \n\t"    // r1:r0 = word data
-                  "ldi r16, 0x01 \n\t"  // Fill Page Buffer command
-                  "out %2, r16 \n\t"
-                  "spm \n\t"
-                  :
-                  : "r" (addr + x), "r" (word), "I" (_SFR_IO_ADDR(SPMCSR))
-                  : "r16", "r0", "r1", "r30", "r31"
-              );
-          }
-
-          // --- 3. WAIT & WRITE PAGE ---
-          asm volatile (
-              "movw r30, %0 \n\t"
-              "ldi r16, 0x05 \n\t"      // Page Write command
-              "out %1, r16 \n\t"
-              "spm \n\t"
-              :
-              : "r" (addr), "I" (_SFR_IO_ADDR(SPMCSR))
-              : "r16", "r30", "r31"
-          );
+        // --- 2. FILL BUFFER ---
+        for (x = 0; x < PAGE_SIZE; x += 2) {
+            uint16_t word = (uint16_t)page[x + 1] | ((uint16_t)page[x + 2] << 8);
+            
+            asm volatile (
+                "movw r30, %0 \n\t"   
+                "movw r0, %1 \n\t"    // r1:r0 = word data
+                "ldi r16, 0x01 \n\t"  // Fill Page Buffer command
+                "out %2, r16 \n\t"
+                "spm \n\t"
+                :
+                : "r" (addr + x), "r" (word), "I" (_SFR_IO_ADDR(SPMCSR))
+                : "r16", "r0", "r1", "r30", "r31"
+            );
         }
+        // --- 3. WAIT & WRITE PAGE ---
+        asm volatile (
+            "movw r30, %0 \n\t"
+            "ldi r16, 0x05 \n\t"      // Page Write command
+            "out %1, r16 \n\t"
+            "spm \n\t"
+            :
+            : "r" (addr), "I" (_SFR_IO_ADDR(SPMCSR))
+            : "r16", "r30", "r31"
+        );
       }
       // write back an ACK byte of 0x54
       page[0] = 0x54;
@@ -236,7 +239,7 @@ sendcode:
       "eor r1, r1 \n\t"
       "ijmp              \n\t"
       : 
-      : "i" (RAMEND), "z" ((uint16_t)(0x1DFE >> 1))
+      : "i" (RAMEND), "z" ((uint16_t)(ORIG_RESET_VECTOR >> 1))
       :
     );
   }
