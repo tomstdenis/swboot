@@ -55,7 +55,7 @@ Finally I also plan to put a ~200 Ohm resistor in series A's data wire so that i
 #define PAGE_LIMIT 119
 
 // MOSFET based support (not yet done)
-//#define USE_MOSFETS
+#define USE_MOSFETS
 
 // REALLY slow...(use this if your line has high capacitance or a weak pullup, uses a 80uS period)
 #define REALLY_SLOW_PULSE
@@ -92,11 +92,16 @@ Finally I also plan to put a ~200 Ohm resistor in series A's data wire so that i
 #define PIN_PORT PORTB
 #define PIN_DDR  DDRB
 #define PIN_PIN  PINB
-#define PIN_RESET 3 // MISO
 #define PIN_WIRE  2 // MOSI
+#ifdef USE_MOSFETS
+#define PIN_PWREN 14 // TBD (MISO)
+#define PIN_DATAEN 15 // TBD (SCLK)
+#endif
 #endif
 
+#ifndef USE_MOSFETS
 #define BRESET (1<<PIN_RESET)
+#endif
 #define BWIRE (1<<PIN_WIRE)
 #define SERIAL_BAUD  115200UL     // baud rate for serial comms, lower values are more friendly for USI/bitbang targets
 #define DELAY_US(us) __builtin_avr_delay_cycles((unsigned long)(us) * (F_CPU / 1000000UL))
@@ -165,6 +170,14 @@ void setup() {
   PIN_DDR |= BRESET; // RESET defaults to output
   PIN_PORT &= ~BWIRE; // ensure BWIRE will be LOW when changed to an output
   PIN_DDR &= ~BWIRE; // WIRE defaults to input
+#else
+  // setup WIRE and RESET pins
+  PIN_PORT &= ~BWIRE; // ensure BWIRE will be LOW when changed to an output
+  PIN_DDR &= ~BWIRE; // WIRE defaults to input
+  pinMode(PIN_PWREN, OUTPUT);
+  digitalWrite(PIN_PWREN, HIGH);
+  pinMode(PIN_DATAEN, OUTPUT);
+  digitalWrite(PIN_DATAEN, HIGH);
 #endif
 }
 
@@ -184,6 +197,28 @@ void target_data_ch(int on)
 {
   // nop in the mosfet-less design
 }
+#else
+void target_power(int on)
+{
+  if (on) {
+    // enable P-CH
+    digitalWrite(PIN_PWREN, LOW);
+  } else {
+    // disable P-CH
+    digitalWrite(PIN_PWREN, HIGH);
+  }
+}
+
+void target_data_ch(int on)
+{
+  if (on) {
+    // enable P-CH
+    digitalWrite(PIN_DATAEN, LOW);
+  } else {
+    // disable P-CH
+    digitalWrite(PIN_DATAEN, HIGH);
+  }
+}
 #endif
 
 void do_reset()
@@ -195,7 +230,6 @@ top:
     // reset the target
     PIN_DDR |= BWIRE;       // set WIRE as output should put line low
     target_power(0);        // turn off/reset
-    PIN_PORT &= ~BRESET;    // set RESET low (halts the target)
     DELAY_US(1000UL * 250);  // hold reset for 250ms
     target_power(1);        // turn on/out of reset
     DELAY_US(1000UL * 150);  // wait 150ms for it to power up
