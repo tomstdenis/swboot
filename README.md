@@ -114,6 +114,8 @@ importantly works off the RC internal clock when fed from the Vcc pin of a pro-m
 
 # Troubleshooting the bootloader
 
+- Usual suspects, ensure the wiring is correct, that you have a pullup, etc (it will fail without the pullup)
+
 - Ensure you have the configuration changes required (reload the IDE after changing these)
 - Ensure you burn the extended fuse correctly 
 - Ensure that the PULSE timing is the same on the adapter and boot (as programmed on the devices)
@@ -138,7 +140,6 @@ is going to be re-written...
 - Tidy up code (there's stale comments, debug logic here and there)
 - Re-write client.c to be an actual app that you can use....
 - Maybe write an "install" script that tries to patch your boards.txt and install platform.local.txt for you
-- I've yet to try this on an attiny84 so while I think it should work... I have't tested this yet.  Just on a bog standard attiny85.
 
 - I will likely make a PCB that caddy's the pro micro with and produces a standard 1x4 pin header (GND, VCC, DATA, RESET) making it easier to connect
   also sport the required pullup on the data line

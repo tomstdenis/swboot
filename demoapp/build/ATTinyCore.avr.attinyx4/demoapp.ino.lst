@@ -1,0 +1,402 @@
+
+/home/tom/.cache/arduino/sketches/9B92BA9274721B86A1379D23C332B832/demoapp.ino.elf:     file format elf32-avr
+
+
+Disassembly of section .text:
+
+00000000 <__vectors>:
+__vectors():
+   0:	10 c0       	rjmp	.+32     	; 0x22 <__ctors_end>
+   2:	1f c0       	rjmp	.+62     	; 0x42 <__bad_interrupt>
+   4:	1e c0       	rjmp	.+60     	; 0x42 <__bad_interrupt>
+   6:	1d c0       	rjmp	.+58     	; 0x42 <__bad_interrupt>
+   8:	1c c0       	rjmp	.+56     	; 0x42 <__bad_interrupt>
+   a:	1b c0       	rjmp	.+54     	; 0x42 <__bad_interrupt>
+   c:	1a c0       	rjmp	.+52     	; 0x42 <__bad_interrupt>
+   e:	19 c0       	rjmp	.+50     	; 0x42 <__bad_interrupt>
+  10:	18 c0       	rjmp	.+48     	; 0x42 <__bad_interrupt>
+  12:	17 c0       	rjmp	.+46     	; 0x42 <__bad_interrupt>
+  14:	16 c0       	rjmp	.+44     	; 0x42 <__bad_interrupt>
+  16:	3c c0       	rjmp	.+120    	; 0x90 <__vector_11>
+  18:	14 c0       	rjmp	.+40     	; 0x42 <__bad_interrupt>
+  1a:	13 c0       	rjmp	.+38     	; 0x42 <__bad_interrupt>
+  1c:	12 c0       	rjmp	.+36     	; 0x42 <__bad_interrupt>
+  1e:	11 c0       	rjmp	.+34     	; 0x42 <__bad_interrupt>
+  20:	10 c0       	rjmp	.+32     	; 0x42 <__bad_interrupt>
+
+00000022 <__ctors_end>:
+__trampolines_start():
+  22:	11 24       	eor	r1, r1
+  24:	1f be       	out	0x3f, r1	; 63
+  26:	cf e5       	ldi	r28, 0x5F	; 95
+  28:	d2 e0       	ldi	r29, 0x02	; 2
+  2a:	de bf       	out	0x3e, r29	; 62
+  2c:	cd bf       	out	0x3d, r28	; 61
+
+0000002e <__do_clear_bss>:
+__do_clear_bss():
+/home/jenkins/workspace/avr-gcc-staging/label/debian7-x86_64/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2441
+  2e:	20 e0       	ldi	r18, 0x00	; 0
+/home/jenkins/workspace/avr-gcc-staging/label/debian7-x86_64/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2442
+  30:	a0 e6       	ldi	r26, 0x60	; 96
+/home/jenkins/workspace/avr-gcc-staging/label/debian7-x86_64/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2443
+  32:	b0 e0       	ldi	r27, 0x00	; 0
+/home/jenkins/workspace/avr-gcc-staging/label/debian7-x86_64/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2444
+  34:	01 c0       	rjmp	.+2      	; 0x38 <.do_clear_bss_start>
+
+00000036 <.do_clear_bss_loop>:
+/home/jenkins/workspace/avr-gcc-staging/label/debian7-x86_64/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2446
+  36:	1d 92       	st	X+, r1
+
+00000038 <.do_clear_bss_start>:
+/home/jenkins/workspace/avr-gcc-staging/label/debian7-x86_64/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2448
+  38:	a9 36       	cpi	r26, 0x69	; 105
+/home/jenkins/workspace/avr-gcc-staging/label/debian7-x86_64/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2449
+  3a:	b2 07       	cpc	r27, r18
+/home/jenkins/workspace/avr-gcc-staging/label/debian7-x86_64/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2450
+  3c:	e1 f7       	brne	.-8      	; 0x36 <.do_clear_bss_loop>
+.do_clear_bss_start():
+  3e:	72 d0       	rcall	.+228    	; 0x124 <main>
+  40:	a1 c0       	rjmp	.+322    	; 0x184 <_exit>
+
+00000042 <__bad_interrupt>:
+__vector_1():
+  42:	de cf       	rjmp	.-68     	; 0x0 <__vectors>
+
+00000044 <micros>:
+micros():
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:360
+    unsigned int r; // needed for some frequencies, optimized away otherwise
+    unsigned char f; // temporary storage for millis fraction counter
+    unsigned char q = 0; // record whether an overflow is flagged
+#endif
+    unsigned long m;
+    uint8_t t, oldSREG = SREG;
+  44:	3f b7       	in	r19, 0x3f	; 63
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:362
+
+    cli();
+  46:	f8 94       	cli
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:367
+#ifdef CORRECT_EXACT_MICROS
+    m = millis_timer_millis;
+    f = millis_timer_fract;
+#else
+    m = millis_timer_overflow_count;
+  48:	80 91 65 00 	lds	r24, 0x0065	; 0x800065 <millis_timer_overflow_count>
+  4c:	90 91 66 00 	lds	r25, 0x0066	; 0x800066 <millis_timer_overflow_count+0x1>
+  50:	a0 91 67 00 	lds	r26, 0x0067	; 0x800067 <millis_timer_overflow_count+0x2>
+  54:	b0 91 68 00 	lds	r27, 0x0068	; 0x800068 <millis_timer_overflow_count+0x3>
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:370
+#endif
+  #if defined(TCNT0) && (TIMER_TO_USE_FOR_MILLIS == 0) && !defined(TCW0)
+    t = TCNT0;
+  58:	22 b7       	in	r18, 0x32	; 50
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:382
+  #else
+    #error "Millis()/Micros() timer not defined"
+  #endif
+
+  #if defined(TIFR0) && (TIMER_TO_USE_FOR_MILLIS == 0)
+    if ((TIFR0 & _BV(TOV0)) && (t < 255))
+  5a:	08 b6       	in	r0, 0x38	; 56
+  5c:	00 fe       	sbrs	r0, 0
+  5e:	05 c0       	rjmp	.+10     	; 0x6a <micros+0x26>
+  60:	2f 3f       	cpi	r18, 0xFF	; 255
+  62:	19 f0       	breq	.+6      	; 0x6a <micros+0x26>
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:384
+    #ifndef CORRECT_EXACT_MICROS
+      m++;
+  64:	01 96       	adiw	r24, 0x01	; 1
+  66:	a1 1d       	adc	r26, r1
+  68:	b1 1d       	adc	r27, r1
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:411
+    #else
+      q = 1;
+    #endif
+  #endif
+
+    SREG = oldSREG;
+  6a:	3f bf       	out	0x3f, r19	; 63
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:453
+  #else
+  #if F_CPU < 1000000L
+    return ((m << 8) + t) * MillisTimer_Prescale_Value * (1000000L/F_CPU);
+  #else
+    #if (MillisTimer_Prescale_Value % clockCyclesPerMicrosecond() == 0 && (F_CPU % 1000000 == 0 )) // Can we just do it the naive way? If so great!
+      return ((m << 8) + t) * (MillisTimer_Prescale_Value / clockCyclesPerMicrosecond());
+  6c:	ba 2f       	mov	r27, r26
+  6e:	a9 2f       	mov	r26, r25
+  70:	98 2f       	mov	r25, r24
+  72:	88 27       	eor	r24, r24
+  74:	bc 01       	movw	r22, r24
+  76:	cd 01       	movw	r24, r26
+  78:	62 0f       	add	r22, r18
+  7a:	71 1d       	adc	r23, r1
+  7c:	81 1d       	adc	r24, r1
+  7e:	91 1d       	adc	r25, r1
+  80:	43 e0       	ldi	r20, 0x03	; 3
+  82:	66 0f       	add	r22, r22
+  84:	77 1f       	adc	r23, r23
+  86:	88 1f       	adc	r24, r24
+  88:	99 1f       	adc	r25, r25
+  8a:	4a 95       	dec	r20
+  8c:	d1 f7       	brne	.-12     	; 0x82 <micros+0x3e>
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:508
+      //return ((m << 8 )/clockCyclesPerMicrosecond()* MillisTimer_Prescale_Value) + ((t+(((m<<8)%clockCyclesPerMicrosecond())) * MillisTimer_Prescale_Value / clockCyclesPerMicrosecond()));
+      return ((m << 8 )/clockCyclesPerMicrosecond()* MillisTimer_Prescale_Value) + (t * MillisTimer_Prescale_Value / clockCyclesPerMicrosecond());
+    #endif
+  #endif
+  #endif // !CORRECT_EXACT_MICROS
+  }
+  8e:	08 95       	ret
+
+00000090 <__vector_11>:
+__vector_11():
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:308
+      #error "cannot find Millis() timer overflow vector"
+    #endif
+  #else
+    #error "Millis() timer not defined!"
+  #endif
+  {
+  90:	1f 92       	push	r1
+  92:	0f 92       	push	r0
+  94:	0f b6       	in	r0, 0x3f	; 63
+  96:	0f 92       	push	r0
+  98:	11 24       	eor	r1, r1
+  9a:	2f 93       	push	r18
+  9c:	3f 93       	push	r19
+  9e:	8f 93       	push	r24
+  a0:	9f 93       	push	r25
+  a2:	af 93       	push	r26
+  a4:	bf 93       	push	r27
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:311
+    // copy these to local variables so they can be stored in registers
+    // (volatile variables must be read from memory on every access)
+    unsigned long m = millis_timer_millis;
+  a6:	80 91 61 00 	lds	r24, 0x0061	; 0x800061 <millis_timer_millis>
+  aa:	90 91 62 00 	lds	r25, 0x0062	; 0x800062 <millis_timer_millis+0x1>
+  ae:	a0 91 63 00 	lds	r26, 0x0063	; 0x800063 <millis_timer_millis+0x2>
+  b2:	b0 91 64 00 	lds	r27, 0x0064	; 0x800064 <millis_timer_millis+0x3>
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:312
+    unsigned char f = millis_timer_fract;
+  b6:	30 91 60 00 	lds	r19, 0x0060	; 0x800060 <__DATA_REGION_ORIGIN__>
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:319
+    static unsigned char correct_exact = 0;     // rollover intended
+    if (++correct_exact < CORRECT_EXACT_MANY) {
+      ++f;
+    }
+#endif
+    f += FRACT_INC;
+  ba:	26 e0       	ldi	r18, 0x06	; 6
+  bc:	23 0f       	add	r18, r19
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:321
+
+    if (f >= FRACT_MAX)
+  be:	2d 37       	cpi	r18, 0x7D	; 125
+  c0:	68 f1       	brcs	.+90     	; 0x11c <__vector_11+0x8c>
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:323
+    {
+      f -= FRACT_MAX;
+  c2:	29 e8       	ldi	r18, 0x89	; 137
+  c4:	23 0f       	add	r18, r19
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:324
+      m += MILLIS_INC + 1;
+  c6:	03 96       	adiw	r24, 0x03	; 3
+  c8:	a1 1d       	adc	r26, r1
+  ca:	b1 1d       	adc	r27, r1
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:331
+    else
+    {
+      m += MILLIS_INC;
+    }
+
+    millis_timer_fract = f;
+  cc:	20 93 60 00 	sts	0x0060, r18	; 0x800060 <__DATA_REGION_ORIGIN__>
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:332
+    millis_timer_millis = m;
+  d0:	80 93 61 00 	sts	0x0061, r24	; 0x800061 <millis_timer_millis>
+  d4:	90 93 62 00 	sts	0x0062, r25	; 0x800062 <millis_timer_millis+0x1>
+  d8:	a0 93 63 00 	sts	0x0063, r26	; 0x800063 <millis_timer_millis+0x2>
+  dc:	b0 93 64 00 	sts	0x0064, r27	; 0x800064 <millis_timer_millis+0x3>
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:334
+#ifndef CORRECT_EXACT_MICROS
+    millis_timer_overflow_count++;
+  e0:	80 91 65 00 	lds	r24, 0x0065	; 0x800065 <millis_timer_overflow_count>
+  e4:	90 91 66 00 	lds	r25, 0x0066	; 0x800066 <millis_timer_overflow_count+0x1>
+  e8:	a0 91 67 00 	lds	r26, 0x0067	; 0x800067 <millis_timer_overflow_count+0x2>
+  ec:	b0 91 68 00 	lds	r27, 0x0068	; 0x800068 <millis_timer_overflow_count+0x3>
+  f0:	01 96       	adiw	r24, 0x01	; 1
+  f2:	a1 1d       	adc	r26, r1
+  f4:	b1 1d       	adc	r27, r1
+  f6:	80 93 65 00 	sts	0x0065, r24	; 0x800065 <millis_timer_overflow_count>
+  fa:	90 93 66 00 	sts	0x0066, r25	; 0x800066 <millis_timer_overflow_count+0x1>
+  fe:	a0 93 67 00 	sts	0x0067, r26	; 0x800067 <millis_timer_overflow_count+0x2>
+ 102:	b0 93 68 00 	sts	0x0068, r27	; 0x800068 <millis_timer_overflow_count+0x3>
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:336
+#endif
+  }
+ 106:	bf 91       	pop	r27
+ 108:	af 91       	pop	r26
+ 10a:	9f 91       	pop	r25
+ 10c:	8f 91       	pop	r24
+ 10e:	3f 91       	pop	r19
+ 110:	2f 91       	pop	r18
+ 112:	0f 90       	pop	r0
+ 114:	0f be       	out	0x3f, r0	; 63
+ 116:	0f 90       	pop	r0
+ 118:	1f 90       	pop	r1
+ 11a:	18 95       	reti
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:328
+      f -= FRACT_MAX;
+      m += MILLIS_INC + 1;
+    }
+    else
+    {
+      m += MILLIS_INC;
+ 11c:	02 96       	adiw	r24, 0x02	; 2
+ 11e:	a1 1d       	adc	r26, r1
+ 120:	b1 1d       	adc	r27, r1
+ 122:	d4 cf       	rjmp	.-88     	; 0xcc <__vector_11+0x3c>
+
+00000124 <main>:
+main():
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:1138
+*/
+
+  // Use the Millis Timer for fast PWM (unless it doesn't have an output).
+  #if (TIMER_TO_USE_FOR_MILLIS == 0)
+    #if defined(WGM01) // if Timer0 has PWM
+      TCCR0A = (1<<WGM01) | (1<<WGM00);
+ 124:	83 e0       	ldi	r24, 0x03	; 3
+ 126:	80 bf       	out	0x30, r24	; 48
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:1141
+    #endif
+    #if defined(TCCR0B) //The x61 has a wacky Timer0!
+      TCCR0B = (MillisTimer_Prescale_Index << CS00);
+ 128:	83 bf       	out	0x33, r24	; 51
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:1162
+    TCCR1A = 1<<WGM10;
+    TCCR1B = (1<<WGM12) | (MillisTimer_Prescale_Index << CS10);
+  #endif
+
+  // this needs to be called before setup() or some functions won't work there
+  sei();
+ 12a:	78 94       	sei
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:1169
+  #ifndef DISABLEMILLIS
+    // Enable the overflow interrupt (this is the basic system tic-toc for millis)
+    #if defined(TIMSK) && defined(TOIE0) && (TIMER_TO_USE_FOR_MILLIS == 0)
+      sbi(TIMSK, TOIE0);
+    #elif defined(TIMSK0) && defined(TOIE0) && (TIMER_TO_USE_FOR_MILLIS == 0)
+      sbi(TIMSK0, TOIE0);
+ 12c:	99 b7       	in	r25, 0x39	; 57
+ 12e:	91 60       	ori	r25, 0x01	; 1
+ 130:	99 bf       	out	0x39, r25	; 57
+initToneTimerInternal():
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:972
+    #elif (TIMER_TO_USE_FOR_TONE == 1 ) && defined(__AVR_ATtinyX7__)
+      TCCR1A = (1<<COM1A1)|(1<<COM1B1)|(1<<WGM10);
+      TCCR1B = (ToneTimer_Prescale_Index << CS10);
+    #elif (TIMER_TO_USE_FOR_TONE == 1) // x4, x8, x313,
+      // Use the Tone Timer for phase correct PWM
+      TCCR1A = (1<<WGM10);
+ 132:	91 e0       	ldi	r25, 0x01	; 1
+ 134:	9f bd       	out	0x2f, r25	; 47
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:973
+      TCCR1B = (0<<WGM12) | (0<<WGM13) | (ToneTimer_Prescale_Index << CS10); //set the clock
+ 136:	8e bd       	out	0x2e, r24	; 46
+main():
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:1214
+  #if defined( INITIALIZE_ANALOG_TO_DIGITAL_CONVERTER ) && INITIALIZE_ANALOG_TO_DIGITAL_CONVERTER
+    #if defined(ADCSRA)
+      // set a2d prescale factor
+      // ADCSRA = (ADCSRA & ~((1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0))) | (ADC_ARDUINO_PRESCALER << ADPS0) | (1<<ADEN);
+      // dude, this is being called on startup. We know that ADCSRA is 0! Why add a RMW cycle?!
+      ADCSRA = (ADC_ARDUINO_PRESCALER << ADPS0) | (1<<ADEN);
+ 138:	86 e8       	ldi	r24, 0x86	; 134
+ 13a:	86 b9       	out	0x06, r24	; 6
+setup():
+/home/tom/Dropbox/sketches/swboot/demoapp/demoapp.ino:4
+// simple demo app to blink PB0
+void setup()
+{
+  DDRB |= 1;
+ 13c:	b8 9a       	sbi	0x17, 0	; 23
+loop():
+/home/tom/Dropbox/sketches/swboot/demoapp/demoapp.ino:9
+}
+
+void loop()
+{
+  PINB = 1; // toggle PB0
+ 13e:	11 e0       	ldi	r17, 0x01	; 1
+ 140:	16 bb       	out	0x16, r17	; 22
+delay():
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:518
+  void yield(void) __attribute__ ((weak, alias("__empty")));
+
+  void delay(unsigned long ms)
+  {
+    #if (F_CPU>=1000000L)
+    uint16_t start = (uint16_t)micros();
+ 142:	80 df       	rcall	.-256    	; 0x44 <micros>
+ 144:	eb 01       	movw	r28, r22
+ 146:	84 ef       	ldi	r24, 0xF4	; 244
+ 148:	c8 2e       	mov	r12, r24
+ 14a:	dd 24       	eor	r13, r13
+ 14c:	d3 94       	inc	r13
+ 14e:	e1 2c       	mov	r14, r1
+ 150:	f1 2c       	mov	r15, r1
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:522
+
+    while (ms > 0) {
+      yield();
+      while (((uint16_t)micros() - start) >= 1000 && ms) {
+ 152:	78 df       	rcall	.-272    	; 0x44 <micros>
+ 154:	6c 1b       	sub	r22, r28
+ 156:	7d 0b       	sbc	r23, r29
+ 158:	68 3e       	cpi	r22, 0xE8	; 232
+ 15a:	73 40       	sbci	r23, 0x03	; 3
+ 15c:	68 f0       	brcs	.+26     	; 0x178 <main+0x54>
+ 15e:	c1 14       	cp	r12, r1
+ 160:	d1 04       	cpc	r13, r1
+ 162:	e1 04       	cpc	r14, r1
+ 164:	f1 04       	cpc	r15, r1
+ 166:	61 f3       	breq	.-40     	; 0x140 <main+0x1c>
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:523
+        ms--;
+ 168:	81 e0       	ldi	r24, 0x01	; 1
+ 16a:	c8 1a       	sub	r12, r24
+ 16c:	d1 08       	sbc	r13, r1
+ 16e:	e1 08       	sbc	r14, r1
+ 170:	f1 08       	sbc	r15, r1
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:524
+        start += 1000;
+ 172:	c8 51       	subi	r28, 0x18	; 24
+ 174:	dc 4f       	sbci	r29, 0xFC	; 252
+ 176:	ed cf       	rjmp	.-38     	; 0x152 <main+0x2e>
+/home/tom/.arduino15/packages/ATTinyCore/hardware/avr/1.5.2/cores/tiny/wiring.c:520
+  void delay(unsigned long ms)
+  {
+    #if (F_CPU>=1000000L)
+    uint16_t start = (uint16_t)micros();
+
+    while (ms > 0) {
+ 178:	c1 14       	cp	r12, r1
+ 17a:	d1 04       	cpc	r13, r1
+ 17c:	e1 04       	cpc	r14, r1
+ 17e:	f1 04       	cpc	r15, r1
+ 180:	41 f7       	brne	.-48     	; 0x152 <main+0x2e>
+ 182:	de cf       	rjmp	.-68     	; 0x140 <main+0x1c>
+
+00000184 <_exit>:
+exit():
+/home/jenkins/workspace/avr-gcc-staging/label/debian7-x86_64/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2278
+ 184:	f8 94       	cli
+
+00000186 <__stop_program>:
+__stop_program():
+/home/jenkins/workspace/avr-gcc-staging/label/debian7-x86_64/gcc-build/avr/avr25/libgcc/../../../../gcc/libgcc/config/avr/lib1funcs.S:2280
+ 186:	ff cf       	rjmp	.-2      	; 0x186 <__stop_program>
