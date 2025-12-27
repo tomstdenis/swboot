@@ -104,18 +104,18 @@ unsigned char is_reset = 0;
 unsigned char ow_readbyte()
 {
   unsigned char x, y;
-  unsigned z;
+  unsigned long z;
   for (x = y = 0; x < 8; x++) {
     // wait for low
     z = 0;
-    while (PIN_PIN & BWIRE) if (!(++z & 0x3FFF)) return 1; // 0x9FF == 16 cycles per uS * 160uS should be more than enough to tell we're in a timeout
+    while (PIN_PIN & BWIRE) if (!(++z & 0xFFFFFF)) return 1; // 0x1000000 loops at 1 cycle every 1/16th of a uS is a bit over 1 second
     // sample at the mid point
     DELAY_US(PULSE_MID);
     y <<= 1;
     y |= (PIN_PIN >> PIN_WIRE) & 1;
     // wait for high
     z = 0;
-    while (!(PIN_PIN & BWIRE)) if (!(++z & 0x3FFF)) return 2;
+    while (!(PIN_PIN & BWIRE)) if (!(++z & 0xFFFFFF)) return 2;
   }
   return y;
 }
