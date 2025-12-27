@@ -110,6 +110,41 @@ uint8_t calc_chk(uint8_t *data) {
     return sum;
 }
 
+static int read_page(int fd, unsigned page_addr, unsigned char *dst)
+{
+	uint8_t read_cmd = 128 + page_addr;
+	int n = 0, total = 0;
+
+	if (write(fd, &read_cmd, 1) != 1) {
+		return -1;
+	}
+	tcdrain(fd);
+
+	while(total < 65 && (n = read(fd, dst + total, 65 - total)) > 0) {
+		total += n;
+	}
+	return dst[0] == 0x54 ? 0 : -1;
+}
+
+static int write_page(int fd, unsigned page_addr, unsigned char *src)
+{
+	uint8_t write_pkt[66];
+	write_pkt[0] = page_addr;
+	memcpy(write_pkt + 1, &flash_buffer[page_addr * PAGE_SIZE], PAGE_SIZE);
+	write_pkt[65] = calc_chk(write_pkt + 1);
+
+	if (write(fd, write_pkt, 66) != 66) {
+		return -1;
+	}
+	tcdrain(fd);
+
+    if (read(fd, write_pkt, 1) != 1) {
+		return -1;
+	}
+
+	return write_pkt[0] == 0x54 ? 0 : -1;
+}
+
 int main(int argc, char *argv[]) {
     if (argc < 3) { printf("Usage: %s <port> <file.hex>\n", argv[0]); return 1; }
 
@@ -118,17 +153,8 @@ int main(int argc, char *argv[]) {
     int fd = open(argv[1], O_RDWR | O_NOCTTY);
     if (fd < 0) { perror("Open port"); return 1; }
     set_interface_attribs(fd, B115200);
-    usleep(500000); 
+    usleep(250000); 
 	tcflush(fd, TCIOFLUSH);
-
-#if 0
-	for (;;) {
-		unsigned char c;
-		if (read(fd, &c, 1) == 1) {
-			printf("Read: %u\n", c);
-		}
-	}
-#endif
 
     // 1. Handshake with 3 retries
     int connected = 0;
@@ -147,67 +173,48 @@ int main(int argc, char *argv[]) {
         sleep(1);
     }
     if (!connected) { printf("Could not find swadapter.\n"); return 1; }
-    
-#if 0
-    // test try to read page at 0x1E00
-    unsigned char buf[128];
-    buf[0] = 0x80 | (0x1E00 >> 6);
-    write(fd, buf, 1);
-    tcdrain(fd);
-        int n = 0, total = 0;
-        while(total < 65 && (n = read(fd, buf + total, 65 - total)) >= 0) {
-			total += n;
-			printf("Read %d bytes...\n", total);
-		}
-    printf("Read %d bytes...\n", total);
-    for (int x = 0; x < total; x++) printf("%02x ", buf[x]);
-    printf("\n");
-//	return 0;
-#endif    
-	
+
     // 2. Upload and Verify
     for (int p = 0; p < MAX_PAGES; p++) {
+		unsigned char page_buf[128];
         if (!dirty_pages[p]) continue;
 
-        uint8_t write_pkt[66];
-        write_pkt[0] = p;
-        memcpy(write_pkt + 1, &flash_buffer[p * PAGE_SIZE], PAGE_SIZE);
-        write_pkt[65] = calc_chk(write_pkt + 1);
-
-        printf("Page %02d: Writing...", p);
-        fflush(stdout);
-        write(fd, write_pkt, 66);
-        tcdrain(fd);
-        
-        uint8_t ack = 0;
-        read(fd, &ack, 1);
-        if (ack != 0x54) { 
-			printf("FAILED Write (0x%02X)\n", ack); 
-			return 1;
-		} else {
-			printf("OK!...");
-			fflush(stdout);
-		}
-
-        printf("Verifying... ");
+        printf("Page %03d: Reading...", p);
 		fflush(stdout);
-        uint8_t read_cmd = 128 + p;
-        write(fd, &read_cmd, 1);
         
-        uint8_t rx_buf[65]; // 1 ack + 64 data
-        int n = 0, total = 0;
-        while(total < 65 && (n = read(fd, rx_buf + total, 65 - total)) > 0) total += n;
-
-        if (rx_buf[0] == 0x54 && memcmp(rx_buf+1, &flash_buffer[p * PAGE_SIZE], PAGE_SIZE) == 0) {
-            printf("OK\n");
-        } else {
-            printf("MISMATCH!\n");
-            printf("ACK byte: %02x\n", rx_buf[0]);
-            for (int x = 0; x < 64; x++) {
-				printf("byte %2d: %02x %02x (%02x)\n", x, flash_buffer[p * PAGE_SIZE + x], rx_buf[1+x], flash_buffer[p * PAGE_SIZE + x] ^ rx_buf[1+x]);
-			}
-            return 1;
-        }
+        // read page and compare first 
+        if (read_page(fd, p, page_buf)) {
+			printf("Could not read page...\n");
+			return -1;
+		}
+		
+		// compare
+		if (!memcmp(page_buf+1, flash_buffer + p * PAGE_SIZE, PAGE_SIZE)) {
+			printf("skipping!\n");
+			continue;
+		}
+		
+		// write
+		printf("writing...");
+		fflush(stdout);
+		if (write_page(fd, p, flash_buffer + p * PAGE_SIZE)) {
+			printf("Could not write page...\n");
+			return -1;
+		}
+		
+		// read back
+		printf("verifying...");
+		fflush(stdout);
+        if (read_page(fd, p, page_buf)) {
+			printf("Could not read page...\n");
+			return -1;
+		}
+		
+		if (memcmp(page_buf + 1, flash_buffer + p * PAGE_SIZE, PAGE_SIZE)) {
+			printf("failed!\n");
+			return -1;
+		}
+		printf("done.\n");
     }
 
     uint8_t exit_cmd = 120;
