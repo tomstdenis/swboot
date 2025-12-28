@@ -70,6 +70,10 @@ mind because I'm lazy both the data and RESET pins have to be on the same port.
 
 There should be a good pullup on the data wire (I'm using a 680Ohm resistor) so there's nice sharp edges.
 
+PROGRESS:  I've ordered prints of my rev1 programmer boards.  These will use P-CH mosfets to control
+the target Vcc as well as a pair used to make a digital relay.  This eliminates the need for a RESET pin on the target
+and will isolate the programmer from the target when not programming meaning you can leave it connected physically.
+
 # client
 
 The client application is very very very bare bones at the moment.  You give it a tty device and a HEX file and it will
@@ -81,13 +85,24 @@ at once... I'll fix it up properly later.
 
 You can program devices via
 
-./client ${TTY} ${HEXFILE}
+./client -p ${TTY} ${HEXFILE}
 
 e.g.
 
-./client /dev/ttyACM0 myapplication.ino.hex
+./client -p /dev/ttyACM0 myapplication.ino.hex
 
 Tip: You can use CTRL+ALT+S to build and export your app as a hex file (look for build/${core}/${appname}.ino.hex under your sketches directory)
+
+The client tool can also dump the entire flash memory
+
+./client -d ${TTY} ${OUTPUTNAME}
+
+The dump will include the ALREADY patched vectors.  So if you want to re-program a dump use the "-f" programming option.  This will program everything
+shy of the bootloader from the file without patching the reset vector.
+
+Note:  If you use "-f" with a raw sketch output (e.g. ${sketch}.ino.hex) you will program it's reset vector  and the bootloader though present will
+not be called unless the new sketch jumps to 0x1E00.  So default to using "-p" to program sketches as it will patch the reset vector.  If you happen
+to mix this up just put it back in your Arduino as ISP (or equiv) and reflash the boot loader sketch.
 
 # One-wire spec
 
