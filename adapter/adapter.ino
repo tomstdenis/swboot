@@ -280,7 +280,7 @@ void loop() {
   // read PAGE byte
   payload[0] = Serial.read();
 
-  if (payload[0] <= PAGE_LIMIT) {
+  if (payload[0] <= PAGE_LIMIT) { // write a page
     // programming a page, read 65 bytes from UART and then relay
     Serial.readBytes(payload+1, 65);
 
@@ -291,7 +291,7 @@ void loop() {
     ow_writebytes(payload, 66);
     DELAY_US(PULSE_A); // pause the short pulse waiting for the other side to get ready to send
     Serial.write(ow_readbyte());
-  } else if (payload[0] >= 128) {
+  } else if (payload[0] >= 128) { // read a page
     // reading a page, transmit page and then read
     // reset if needed AFTER reading from UART so we don't lose payload
     if (!is_reset) {
@@ -302,7 +302,7 @@ void loop() {
     ow_readbytes(payload, 65); // payload + ACK byte
     Serial.write(payload, 65);
     DELAY_US(5000); // pause 1ms between page writes
-  } else if (payload[0] == 121) {
+  } else if (payload[0] == 121) { // power and channel control
     // power control
     payload[0] = Serial.read();
     if (payload[0] & 2) {
@@ -312,6 +312,16 @@ void loop() {
       target_data_ch(payload[0] & 4);
     }
     Serial.write(0x54); // ACK
+  } else if (payload[0] == 122) { // write to wire
+    // send bytes from serial to the wire
+    unsigned char x = Serial.read() & 0x3F;
+    Serial.readBytes(payload, x);
+    ow_writebytes(payload, x);
+  } else if (payload[0] == 123) { // write to serial
+    // read bytes from the wire to serial
+    unsigned char x = Serial.read() & 0x3F;
+    ow_readbytes(payload, x);
+    Serial.write(payload, x);
   } else if (payload[0] == 127) {
     // Init packet to check H - A connection
     Serial.print(F("HELLO"));
