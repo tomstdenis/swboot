@@ -1,0 +1,5 @@
+build
+*.lst
+client/client
+client/*.o
+demoapp/*.lst

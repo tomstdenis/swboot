@@ -1,0 +1,1 @@
+compiler.c.elf.extra_flags=-Wl,--section-start=.bootloader8k=0x1E00 -Wl,--section-start=.bootloader4k=0x0E00 -Wl,--section-start=.bootloader2k=0x0600
