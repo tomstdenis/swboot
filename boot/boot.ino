@@ -287,7 +287,6 @@ sendcode:
 
           // set as input (high)
           DATA_DDR &= ~BB;
-
           SIMP_DELAY_US(wb);
 
           buf <<= 1;
