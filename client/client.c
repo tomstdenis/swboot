@@ -115,7 +115,7 @@ static int target_write_page(int fd, unsigned page_addr, unsigned char *src)
 	uint8_t write_pkt[66];
 	write_pkt[0] = page_addr;
 	memcpy(write_pkt + 1, &flash_buffer[page_addr * PAGE_SIZE], PAGE_SIZE);
-	write_pkt[65] = calc_chk(write_pkt);
+	write_pkt[PAGE_SIZE+1] = calc_chk(write_pkt);
 
 	if (write(fd, write_pkt, (2+PAGE_SIZE)) != (2+PAGE_SIZE)) {
 		return -1;
@@ -125,7 +125,9 @@ static int target_write_page(int fd, unsigned page_addr, unsigned char *src)
     if (read(fd, write_pkt, 1) != 1) {
 		return -1;
 	}
-
+	if (write_pkt[0] == 0x83) {
+		printf("CRC-8 error...");
+	}
 	return write_pkt[0] == 0x54 ? 0 : -1;
 }
 
