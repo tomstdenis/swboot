@@ -302,8 +302,8 @@ void loop() {
     }
     Serial.write(0x54); // ACK
   } else if (payload[0] == 122) { // write/read 1-wire back to back
-    unsigned char x = Serial.read() & 0x3F;
-    unsigned char y = Serial.read() & 0x3F;
+    unsigned char x = Serial.read() & (page_size - 1);
+    unsigned char y = Serial.read() & (page_size - 1);
     if (x) {
       Serial.readBytes(payload, x);
       ow_writebytes(payload, x);
