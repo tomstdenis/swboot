@@ -62,8 +62,12 @@ Programming your sketch on the target device
 
 1. Pick your board/chip for your sketch
 2. Export the build CTRL+ALT+S
-3. Using the client tool upload the sketch found in the buiild directory, e.g. ${sketch}/build/ATTinyCore.avr.attinyx5/${sketch}.ino.hex
-   e.x., client /dev/ttyACM0 -p demo_ow/build/ATTinyCore.avr.attinyx5/demo_ow.ino.hex
+3. Using the client tool upload the sketch found in the buiild directory, e.g. for x5 builds
+
+```
+	#${sketch}/build/ATTinyCore.avr.attinyx5/${sketch}.ino.hex
+	client /dev/ttyACM0 -p ${sketch}/build/ATTinyCore.avr.attinyx5/${sketch}.ino.hex
+```
 
 If it uploads successfully your sketch should be now running on the target.  You can use the code found in client to make a host
 app that talks to your sketch over 1-wire via the adapter (this is what the demo_ow does!).
@@ -73,9 +77,8 @@ app that talks to your sketch over 1-wire via the adapter (this is what the demo
 - Requires a strong pullup on the data wire.  You can limit this to the adapter side of things though if you want.  I used a 680 Ohm resistor
 - Other things attached to your target's data PIN should be high impedence otherwise it could skew the pulses.  So best to
   leave this pin as an input target (e.g. buttons, etc), or make provisions to jumper it out of circuit while you program it.
-- Only tested on 8x series parts right now (8KB).  Compile tested for 2x and 4x.
-- Only tested at 8MHz RC.  >= 8MHz should be fine (with a suitable external clock signal).  Below 8MHz might work but I'd strongly
-  encourage you to have a stable clock since drift at lower frequencies can accumulate more error.
+- Tested on 84, 85, and a 25.
+- Will work with RC and XTAL configs (if you're on a RC setup just make sure you have a solid 5 volts).
 
 # Setup
 
