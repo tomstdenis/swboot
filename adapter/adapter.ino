@@ -56,7 +56,7 @@ Finally I also plan to put a ~200 Ohm resistor in series A's data wire so that i
 #define PAGE_LIMIT 119
 
 // MOSFET based support (not yet done)
-//#define USE_MOSFETS
+// #define USE_MOSFETS
 
 // pins ...
 #if 0

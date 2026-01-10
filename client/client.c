@@ -191,6 +191,32 @@ static int target_reboot(int fd)
     return 0;
 }
 
+static int target_ow_power(int fd, int power, int data)
+{
+	unsigned char buf[2];
+
+	buf[0] = 121; // power control
+	buf[1] = 0;
+	if (power >= 0) {
+		buf[1] |= (1<<1);
+		buf[1] |= (power ? 1 : 0) << 0;
+	}
+	if (data >= 0) {
+		buf[1] |= (1<<3);
+		buf[1] |= (data ? 1 : 0) << 2;
+	}
+    if (write(fd, buf, 2) != 2) {
+		printf("Could not write power command to target...\n");
+		return -1;
+	}
+	tcdrain(fd);
+
+    if (read(fd, buf, 1) != 1) {
+		return -1;
+	}
+	return buf[0] == 0x54 ? 0 : -1;
+}
+
 static int target_ident(int fd)
 {
     uint8_t ident_cmd = 126;
@@ -393,10 +419,20 @@ static int link_test(int fd)
 		return -1;
 	}
 
+	// turn device on and enable data
+	printf("Enabling device...");
+	if (target_ow_power(fd, 1, 1) < 0) {
+		printf("failed...\n");
+		close(rng);
+		return -1;
+	} else {
+		printf("done.\n");
+	}
+
 	printf("Testing link quality (%d uS pulses, %d uS turnaround)...\n", PULSE_LENGTH, PULSE_REVERSAL_LENGTH);
 	totaltests = totalmisses = 0;
 	for (stride = 1; stride < 9; stride++) {
-		for (miss = x = 0; x < 5000; x++) {
+		for (miss = x = 0; x < 50000; x++) {
 			printf("Stride %2lu bytes - Test #%6lu...(%6lu)\r", stride, x, miss);
 			fflush(stdout);
 			outbuf[0] = stride;
