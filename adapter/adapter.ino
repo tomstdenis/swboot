@@ -101,14 +101,14 @@ unsigned char ow_readbyte()
   for (x = y = 0; x < 8; x++) {
     // wait for low
     z = 0;
-    while (PIN_PIN & BWIRE) if (!(++z & 0x3FFFFF)) return 1; // eventually timeout...
+    while (PIN_PIN & BWIRE) if (!(++z & 0x3FFF)) return 1; // eventually timeout...
     // sample at the mid point
     DELAY_US(PULSE_MID);
     y <<= 1;
     y |= (PIN_PIN >> PIN_WIRE) & 1;
     // wait for high
     z = 0;
-    while (!(PIN_PIN & BWIRE)) if (!(++z & 0x3FFFFF)) return 2;
+    while (!(PIN_PIN & BWIRE)) if (!(++z & 0x3FFF)) return 2;
   }
   return y;
 }
