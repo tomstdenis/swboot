@@ -56,7 +56,7 @@ Finally I also plan to put a ~200 Ohm resistor in series A's data wire so that i
 #define PAGE_LIMIT 119
 
 // MOSFET based support (not yet done)
-// #define USE_MOSFETS
+#define USE_MOSFETS
 
 // pins ...
 #if 0
@@ -72,17 +72,20 @@ Finally I also plan to put a ~200 Ohm resistor in series A's data wire so that i
 #define PIN_DDR  DDRB
 #define PIN_PIN  PINB
 #ifndef USE_MOSFETS
-#define PIN_RESET 3           // The reset pin
+#define PIN_RESET 3           // PB3 The reset pin (only used if MOSFETS are disabled)
 #endif
-#define PIN_WIRE  2 // MOSI
+#define PIN_WIRE  2           // PB2 MOSI
 #ifdef USE_MOSFETS
-#define PIN_PWREN 14 // TBD (MISO)
-#define PIN_DATAEN 15 // TBD (SCLK)
+#define PIN_PWREN 3           // PB3 (MISO)
+#define PIN_DATAEN 1          // PB1 (SCLK)
 #endif
 #endif
 
 #ifndef USE_MOSFETS
 #define BRESET (1<<PIN_RESET)
+#else
+#define BPWREN (1<<PIN_PWREN)
+#define BDATAEN (1<<PIN_DATAEN)
 #endif
 #define BWIRE (1<<PIN_WIRE)
 #define SERIAL_BAUD  115200UL     // baud rate for serial comms, lower values are more friendly for USI/bitbang targets
@@ -133,7 +136,7 @@ void ow_writebyte(unsigned char y)
       wb = SIMP_US_TO_LOOPS(PULSE_A);
     }
 
-    // set output direction and lowUSING_X5
+    // set output direction and low
     PIN_DDR |= BWIRE;
     SIMP_DELAY_US(wa);
 
@@ -163,12 +166,8 @@ void setup() {
   PIN_DDR &= ~BWIRE; // WIRE defaults to input
 #else
   // setup WIRE and RESET pins
-  PIN_PORT &= ~BWIRE; // ensure BWIRE will be LOW when changed to an output
-  PIN_DDR &= ~BWIRE; // WIRE defaults to input
-  pinMode(PIN_PWREN, OUTPUT);
-  digitalWrite(PIN_PWREN, HIGH);
-  pinMode(PIN_DATAEN, OUTPUT);
-  digitalWrite(PIN_DATAEN, HIGH);
+  PIN_PORT &= ~(BWIRE|BPWREN|BDATAEN); // ensure BWIRE will be LOW when changed to an output
+  PIN_DDR &= ~(BWIRE|BPWREN|BDATAEN); // WIRE defaults to input
 #endif
 }
 
@@ -193,10 +192,10 @@ void target_power(int on)
 {
   if (on) {
     // enable P-CH
-    digitalWrite(PIN_PWREN, LOW);
+    PIN_DDR |= BPWREN;
   } else {
     // disable P-CH
-    digitalWrite(PIN_PWREN, HIGH);
+    PIN_DDR &= ~BPWREN;
   }
 }
 
@@ -204,10 +203,10 @@ void target_data_ch(int on)
 {
   if (on) {
     // enable P-CH
-    digitalWrite(PIN_DATAEN, LOW);
+    PIN_DDR |= BDATAEN;
   } else {
     // disable P-CH
-    digitalWrite(PIN_DATAEN, HIGH);
+    PIN_DDR &= ~BDATAEN;
   }
 }
 #endif
