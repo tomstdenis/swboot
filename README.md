@@ -17,6 +17,10 @@ Your app has:
 
 The booter tries to sense if the programmer is present and if not jumps into your target application relatively quickly.  This is done by sensing the data pin for being driven low.  If it is then it tries to enter programming mode.  The sensing takes very little time so with the pin high (or floating) it will launch your app very quickly.
 
+Here's what it looks like with my PCB hooked up to an ATTiny85.  The use of the onboard mosfets means we don't need to hookup the reset line in this configuration.
+
+![Example hookup with my PCB to an ATtiny85](gerber/001/attiny85_hookup.png)
+
 ## UPDI Comparison
 
 When I started this hacky winter vacation project I wasn't aware of UPDI (or really any of the newer Tiny cores).  I just wanted something fun to work on.  This project gives you UPDI like features but with the older cores.  Given the pricing though you really ought to use the newer cores instead though.  That being said if you have a bunch of older cores laying about or just really like the older designs here we are.
@@ -65,8 +69,8 @@ Programming your sketch on the target device
 3. Using the client tool upload the sketch found in the buiild directory, e.g. for x5 builds
 
 ```
-	#${sketch}/build/ATTinyCore.avr.attinyx5/${sketch}.ino.hex
-	client /dev/ttyACM0 -p ${sketch}/build/ATTinyCore.avr.attinyx5/${sketch}.ino.hex
+    #${sketch}/build/ATTinyCore.avr.attinyx5/${sketch}.ino.hex
+    client /dev/ttyACM0 -p ${sketch}/build/ATTinyCore.avr.attinyx5/${sketch}.ino.hex
 ```
 
 If it uploads successfully your sketch should be now running on the target.  You can use the code found in client to make a host
