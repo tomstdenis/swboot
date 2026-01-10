@@ -223,7 +223,7 @@ top:
     target_power(0);        // turn off/reset
     DELAY_US(1000UL * 350);  // hold reset for 250ms
     target_power(1);        // turn on/out of reset
-    DELAY_US(1000UL * 150);  // wait 150ms for it to power up
+    DELAY_US(1000UL * 250);  // wait 250ms for it to power up
     PIN_DDR &= ~BWIRE;      // reset wire to input, line should go high
 
     // now sample 100us for low

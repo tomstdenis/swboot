@@ -89,7 +89,7 @@ void __attribute__((section(".bootloader2k"), naked, used, noinline, noreturn)) 
       goto done;
     }
 
-    // We don't know where in the 150mS post-RESET window we're in so syncup to the adapter going high.
+    // We don't know where in the 250mS post-RESET window we're in so syncup to the adapter going high.
     while (!(DATA_PIN & BB));
 
     // now we hold the line low for 100uS
